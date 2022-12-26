@@ -70,6 +70,7 @@ MBR为咱们地一个在编写操作系统中自行构造的程序，理论上�
 4. 然后我们来实现打印字符串，此刻由于我们未使用IO知识，所以我们还是用中断向量来实现（现在知道BIOS的伟大之处了），运用13号子功能
 5. 打印结束记得填充，nasm中有自带的填充语句，即为
 > times 指令
+   
 6. 最后两字节填充0xaa55
 
 ### 4.代码实现
@@ -136,6 +137,7 @@ SECTION MBR vstart=0x7c00   ; 向编译器表示咱们这儿起始地址应为0x
 ### 5.汇编
 运用我们之前的知识
 > nasm -o mbr.bin mbr.S
+   
 之后咱们用ls查看下是否512字节,利用ls即可验证
 > -rw-rw-r-- 1 dawn dawn 512 Dec 26 07:41 mbr.bin
 
@@ -148,6 +150,7 @@ SECTION MBR vstart=0x7c00   ; 向编译器表示咱们这儿起始地址应为0x
 
 介绍结束，之后我们使用这个命令将mbr.bin打入相应磁盘扇区,也就是第一快512扇区，还记得之前那个0,0,1吗，就是BIOS结束的工作所找寻的快
 > dd if=/你的路径/mbr.bin of=/你的路径/bochs/hd60M.img bs=512 count=1 conv=notrunc
+   
 执行完出现以下提示即表示成功打入
 ![](http://imgsrc.baidu.com/super/pic/item/4034970a304e251f6220aa3ce286c9177e3e531b.jpg)
 然后咱们就可以开始测试了
@@ -155,6 +158,7 @@ SECTION MBR vstart=0x7c00   ; 向编译器表示咱们这儿起始地址应为0x
 ## 0x03 测试代码
 激动的心，颤抖的手，这是咱们地一个自己实现的代码，还是跟之前一样
 > bin/bochs -f bochsrc.disk
+   
 我们在最开始执行的指令也可以发现这个就是jmp，跟我们最开始说BIOS执行的第一条指令的论述是完全一致的！
 ![](http://imgsrc.baidu.com/super/pic/item/4034970a304e251f6220aa3ce286c9177e3e531b.jpg)
 一切如咱所愿，大成功！！
