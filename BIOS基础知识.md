@@ -161,7 +161,7 @@ SECTION MBR vstart=0x7c00   ; 向编译器表示咱们这儿起始地址应为0x
 > bin/bochs -f bochsrc.disk
    
 我们在最开始执行的指令也可以发现这个就是jmp，跟我们最开始说BIOS执行的第一条指令的论述是完全一致的！
-![](http://imgsrc.baidu.com/super/pic/item/4034970a304e251f6220aa3ce286c9177e3e531b.jpg)
+![](http://imgsrc.baidu.com/super/pic/item/8435e5dde71190efbf90db1b8b1b9d16fcfa608f.jpg)
 一切如咱所愿，大成功！！
 ![](http://imgsrc.baidu.com/super/pic/item/dbb44aed2e738bd4e2e1fcf5e48b87d6267ff936.jpg)
 
