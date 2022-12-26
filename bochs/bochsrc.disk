@@ -15,9 +15,9 @@ log: bochs.out
 #第六步，开启或关闭某些功能。
 #下面是关闭鼠标，并打开键盘。
 mouse: enabled=0 
-keyboard:keymap=/home/dawn/repos/OS_learning/＝bochs/share/bochs/keymaps/xll-pc -us.map
+keyboard:keymap=/home/dawn/repos/OS_learning/bochs/share/bochs/keymaps/x11-pc-us.map
 #硬盘设置
-ata0: enabled=1, ioaddr1=Ox1f0, ioaddr2=0x3f0, irq=14 
+ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14 
 #下面的是增加的 bochs gdb 的支持，这样 gdb 可以远程连接到此机器的 234 口调试了
 #gdbstub : enabled=l, port=l234, text_base=O, data_base=O, bss_base=O 
 ################### 配置文件结束 #####################
