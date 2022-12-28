@@ -1,4 +1,7 @@
 ;主引导程序
+;
+;LOADER_BASE_ADDR equ 0xA000
+;LOADER_START_SECTIOR equ 0x2
 ;------------------------------------------
 SECTION MBR vstart=0x7c00   ; 向编译器表示咱们这儿起始地址应为0x7c00
   mov ax,cs
@@ -7,6 +10,8 @@ SECTION MBR vstart=0x7c00   ; 向编译器表示咱们这儿起始地址应为0x
   mov ss,ax
   mov fs,ax
   mov sp,0x7c00
+  mov ax,0xb800             ;使用文本模式，所以得把文本范围类的地址输入gs当作段基地址
+  mov gs,ax 
 ; 清屏利用0x06号子功能，上卷全部行即可清屏
 ;-------------------------------------------
 ;INT 0x10    功能号：0x06    功能：上卷窗口
@@ -24,33 +29,32 @@ SECTION MBR vstart=0x7c00   ; 向编译器表示咱们这儿起始地址应为0x
   mov dx,0x184f     ; 右下角(0x4f,0x18),在VGA文本模式中一行只能容纳80字符
   int 0x10
 
-;;;;;;;; 下面三行获取光标位置 ;;;;;;;;;;;;;;;
-; ,get_cursor获取光标位置，并在光标位置打印字符
-  mov ah,3          ;输入： 3号子功能即为获取当前光标位置
-  mov bh,0          ;bh 寄存器存储的是待获取光标的页号
+;输出背景色为蓝色，钱景色为红色且跳动的字符串“peiwithhao”,注意为小端序
+  mov byte [gs:0x00], 'p'
+  mov byte [gs:0x01], 0x94
+  mov byte [gs:0x02], 'e'
+  mov byte [gs:0x03], 0x94
+  mov byte [gs:0x04], 'i'
+  mov byte [gs:0x05], 0x94
+  mov byte [gs:0x06], 'w'
+  mov byte [gs:0x07], 0x94
+  mov byte [gs:0x08], 'i'
+  mov byte [gs:0x09], 0x94
+  mov byte [gs:0x0a], 't'
+  mov byte [gs:0x0b], 0x94
+  mov byte [gs:0x0c], 'h'
+  mov byte [gs:0x0d], 0x94
+  mov byte [gs:0x0e], 'h'
+  mov byte [gs:0x0f], 0x94
+  mov byte [gs:0x10], 'a'
+  mov byte [gs:0x11], 0x94
+  mov byte [gs:0x12], 'o'
+  mov byte [gs:0x13], 0x94
+    
 
-  int 0x10          ;输出 ch=光标开始行，cl =光标结束行
-                    ;dh=光标所在行号，dl=光标所在页号
-;;;;;;;; 获取光标结束 ;;;;;;;;;;;;;;
 
-;;;;;;;;;;; 打印字符串 ;;;;;;;;;;;;;;;;
-;依旧用中断的0x13号子功能
-  mov ax, message       ;文件末会声明此字符串
-  mov bp, ax            ;es:bp为串首地址，es此时由于最开始的初始化，同cs一致
-;光标位置需要用到dx寄存器内容，cx中的光标位置可忽略
-  mov cx,0xa              ;cx 为串长度，不包括结束副\x00
-  mov ax,0x1301         ;ah=13为显示字符功能号
-                        ;al = 01 表示该功能的模式，具体模式有以下几种
-                        ;(1)0,显示字符串，光标返回起始位置
-                        ;(2)1,显示字符串，光标跟随到新位置
-                        ;(3)2,显示字符串以及属性，光标返回起始位置
-                        ;(4)3,显示字符串以及属性，光标跟随到新位置
-  mov bx,0x2            ;bh存储要显示的页号，此时为0页，bl中是字符属性，bl=02h表示黑底绿字
-  int 0x10              ; 执行BIOS 0x10中断
 ;;;;;;;;;; 打印字符串结束 ;;;;;;;;;;;;;;;
   jmp $                 ;悬停指针
-
-  message  db "peiwithhao"
   times 510-($-$$) db 0     ;$-$$表示该指令行距离section起始地址的偏移，这里也可表示为目前指令大小
   db 0x55,0xaa
 
