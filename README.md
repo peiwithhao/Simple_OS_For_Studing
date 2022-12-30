@@ -14,3 +14,5 @@
 > 0x01 BIOS以及简易MBR ， 对应分支名-BIOS
 
 > 0x02 改进版MBR，利用显卡实现输出，对应分支名-UMBR
+
+> 0x03 加强版MBR，通过读取硬盘来加载Loader，对应分支名-UUMBR
