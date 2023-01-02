@@ -53,7 +53,7 @@ SECTION MBR vstart=0x7c00   ; 向编译器表示咱们这儿起始地址应为0x
 
   mov eax,LOADER_START_SECTOR   ;起始扇区LBA地址,注意这里使用32位寄存器是可行的，虽然说实模式下咱们只能用16位地址，但不是说用不了32位寄存器
   mov bx,LOADER_BASE_ADDR       ;写入的内存地址
-  mov cx,1                      ;待读入的扇区数
+  mov cx,4                      ;待读入的扇区数
   call rd_disk_m_16             ;以下读取程序的其实部分（一个扇区），rd_disk_m_16表示在16位模式下读硬盘的section函数，我们在下面实现
   
   jmp LOADER_BASE_ADDR          ;代码运行至此说明Loader已经加载完毕
