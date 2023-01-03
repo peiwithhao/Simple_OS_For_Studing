@@ -25,11 +25,62 @@ SELECTOR_VIDEO equ (0x0003<<3) + TI_GDT + RPL0   ;同上类似
 ;-------------- 以下定义gdt的指针，前2字节是gdt的界限，后4字节是gdt的起始地址 ---------
 gdt_ptr dw GDT_LIMIT    ;define word
         dd GDT_BASE
-loadermsg db '2 loader in real'
+loadermsg db 'I am loader in real.'
 
 loader_start:
 ;----------------------------------------------
 ;INT 0x10   功能号：0x13    功能描述：打印字符串
 ;----------------------------------------------
 ;输入：
-;AH 
+;AH子功能号=13H
+;BH = 页号
+;BL = 属性
+;CX = 字符串长度
+;(DH,DL) = 字符串地址
+;AL = 显示输出方式
+; 0 -- 字符串只含显示字符，显示属性在BL中，显示后光标位置不变
+; 1 -- 字符串只含显示字符，显示属性在BL中，显示后光标位置改变
+; 2 -- 字符串只含显示字符和显示属性，显示后光标位置不变
+; 3 -- 字符串只含显示字符和显示属性，显示后光标位置改变
+; 无返回值
+  mov sp ,LOADER_BASE_ADDR
+  mov bp ,loadermsg     ;ES:BP = 字符串地址
+  mov cx ,20            ;CX = 字符串长度                ;注意这里使用的是BIOS中断，一旦进入保护模式就没有BIOS中断了
+  mov ax ,0x1301        ;AH = 13H,AL = 01H
+  mov bx ,0x001f        ;页号为0,蓝底粉红字
+  mov dx ,0x1800        
+  int 0x10              ;10H号中断
+
+;---------------- 准备进入保护模式 ------------------
+;1 打开A20
+;2 加载gdt
+;3.将CR0的PE位置0,
+
+  ;------------=- 打开A20 --------------
+  in al,0x92
+  or al,0000_0010B
+  out 0x92,al
+
+  ;------------- 加载GDT --------------
+  lgdt [gdt_ptr]
+
+  ;------------- CR0第0位置1 ----------
+  mov eax, cr0
+  or eax, 0x00000001
+  mov cr0, eax
+
+  jmp dword SELECTOR_CODE:p_mode_start ;刷新流水线
+
+[bits 32]
+p_mode_start:
+  mov ax, SELECTOR_DATA
+  mov ds, ax
+  mov es, ax
+  mov ss, ax
+  mov esp, LOADER_STACK_TOP
+  mov ax, SELECTOR_VIDEO
+  mov gs, ax
+
+  mov byte [gs:160], 'p'
+
+  jmp $
