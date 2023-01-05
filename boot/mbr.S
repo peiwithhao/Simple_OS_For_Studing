@@ -56,7 +56,7 @@ SECTION MBR vstart=0x7c00   ; 向编译器表示咱们这儿起始地址应为0x
   mov cx,4                      ;待读入的扇区数
   call rd_disk_m_16             ;以下读取程序的其实部分（一个扇区），rd_disk_m_16表示在16位模式下读硬盘的section函数，我们在下面实现
   
-  jmp LOADER_BASE_ADDR          ;代码运行至此说明Loader已经加载完毕
+  jmp LOADER_BASE_ADDR + 0x300         ;代码运行至此说明Loader已经加载完毕
 
 ;------------------------------------
 ;功能:读取硬盘n个扇区
