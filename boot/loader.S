@@ -65,6 +65,8 @@ loader_start:
 .next_ards:
   loop .find_max_mem_area ;循环，以cx为循环次数
   jmp .mem_get_ok
+
+
 ;------ int 15H ax=E801h , 获取内存大小，最大支持4G------
 ;返回后，ax cx值一样，以KB为单位， bx dx 一样，以64KB为单位
 ;在ax和cx寄存器中为低16MB，在bx与dx寄存器中为16MB到4GB
@@ -75,12 +77,40 @@ loader_start:
 ;1 先算出低15MB的内存
 ; ax和cx中是以KB为单位的内存数量，因此我们将其转换为以byte为单位
   mov cx,0x400  ;这里由于cx和ax一样，所以我们将cx用作乘数，0x400即为1024
-  mul cx        ;由于处于实模式，所以我们mul指令的含义是ax × cx
-  shl edx, 16
+  mul cx        ;由于处于实模式，所以我们mul指令的含义是ax × cx，注意mul指令是16位乘法，生成乘数应该是32位，高16位在dx中，低16位存于ax中
+  shl edx, 16   ;左移16位,这里也就是将dx保存的高16位转移到edx的高16位上
+  and eax, 0x0000FFFF   ;将eax高16位清0
+  or edx, eax   ;或后得出乘积，保存至edx中
+  add edx, 0x100000     ;最后将差的那1MB加上
+  mov esi, edx      ;这里保存一下edx的值，因为在之后的计算过程中他会被破坏
+
+;2 再将16MB以上的内存转换为byte为单位
+  xor eax, eax
+  mov ax, bx
+  mov ecx, 0x10000  ;0x10000为16进制的64K
+  mul ecx           ;32位乘法，其高32位和低32位存放在edx和eax中
+  add esi, eax      ;由于这里只能最大测出4GB，edx的值肯定为0，所以咱们只需要eax就可以了
+  mov edx, esi      ;其中edx为总内存大小
+  jmp .mem_get_ok
+
+;----- int 15h ah=0x88 获取内存大小，只能获取64MB之内 -------
+.e801_failed_so_try88:
+  ;int 15h后，ax存入的是以KB为单位的内存容量
+  mov ah, 0x88
+  int 0x15
+  jc .error_hlt
   and eax, 0x0000FFFF
+
+  ;16位乘法
+  mov cx, 0x400
+  mukl cx
+  shl edx, 16
   or edx, eax
-  add edx, 0x100000
-  mov esi, edx
+  add edx,0x100000  ;0x88子功能只会返回1MB以上的内存，所以最终我们还需要加上1MB
+
+.mem_get_ok:
+  mov [total_mem_bytes], edx            ;将内存换为bytes为单位然后存入total_mem_bytes中
+
 ;---------------- 准备进入保护模式 ------------------
 ;1 打开A20
 ;2 加载gdt
