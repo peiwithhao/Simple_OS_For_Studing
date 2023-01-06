@@ -33,10 +33,10 @@ SELECTOR_VIDEO equ (0x0003<<3) + TI_GDT + RPL0   ;同上类似
 gdt_ptr dw GDT_LIMIT    ;define word
         dd GDT_BASE
 
-;人工对齐：total_mem_bytes4+gdt_ptr6+ards_buf244+ards_nr2,共256字节
+;人工对齐：total_mem_bytes4+gdt_ptr6+ards_buf244+ards_nr2,共256字节,0x100
 ards_buf times 244 db 0
 ards_nr dw 0        ;用于记录ARDS结构体的数量
-jmp $
+
 loader_start:
 ;------ int 15H eax = 0000E820,edx = 534D4150('SMAP') 获取内存布局-------
   xor ebx, ebx      ;第一次调用时，ebx置0
@@ -103,10 +103,13 @@ loader_start:
 
   ;16位乘法
   mov cx, 0x400
-  mukl cx
+  mul cx
   shl edx, 16
   or edx, eax
   add edx,0x100000  ;0x88子功能只会返回1MB以上的内存，所以最终我们还需要加上1MB
+
+.error_hlt:
+  jmp $
 
 .mem_get_ok:
   mov [total_mem_bytes], edx            ;将内存换为bytes为单位然后存入total_mem_bytes中
