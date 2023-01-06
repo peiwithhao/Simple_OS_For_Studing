@@ -36,7 +36,7 @@ gdt_ptr dw GDT_LIMIT    ;define word
 ;人工对齐：total_mem_bytes4+gdt_ptr6+ards_buf244+ards_nr2,共256字节
 ards_buf times 244 db 0
 ards_nr dw 0        ;用于记录ARDS结构体的数量
-
+jmp $
 loader_start:
 ;------ int 15H eax = 0000E820,edx = 534D4150('SMAP') 获取内存布局-------
   xor ebx, ebx      ;第一次调用时，ebx置0
