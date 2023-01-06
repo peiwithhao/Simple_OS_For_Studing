@@ -146,4 +146,17 @@ p_mode_start:
 
   mov byte [gs:160], 'p'
 
-  jmp $
+;-------------  创建页目录以及页表 ------------
+setup_page:
+;先把页目录占用的空间逐字清0
+  mov ecx, 4096     ;表示4K
+  mov esi, 0
+.clear_page_dir:
+  mov byte [PAGE_DIR_TABLE_POS + esi], 0
+  inc esi
+  loop .clear_page_dir
+
+;开始创建页目录项(PDE)
+.create_pde:    ;创建Page Directory Entry
+  mov eax, PAGE_DIR_TABLE_POS
+  add eax, 0x100-   ;此时为
