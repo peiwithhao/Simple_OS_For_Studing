@@ -4,7 +4,8 @@
 
 ---
    
-可以通过branch转换分支，我每一章都新建一个分支，方便大家不同阶段来查看
+可以通过branch转换分支，我每一章都新建一个分支，方便大家不同阶段来查看，就比如当前是main分支，我们只需要点击切换即可
+![](http://imgsrc.baidu.com/super/pic/item/3ac79f3df8dcd1003d523ae5378b4710b8122f2c.jpg)
 
 ---
    
