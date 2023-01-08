@@ -107,6 +107,10 @@ dd if=./kernel.bin of=../bochs/hd60M.img bs=512 count=20 seek=9 conv=notrunc
 ```
 KERNEL_START_SECTOR equ 0x9         ;Kernel存放硬盘扇区
 KERNEL_BIN_BASE_ADDR equ 0x70000    ;Kernel存放内存首址
+KERNEL_ENTRY_POINT equ 0xc0001500   ;Kernel程序入口地址
+;----------- ELF文件相关 -----------------
+PT_NULL equ 0x0
+
 ```
 
 然后我们在加载页表之前来加载内核，代码如下：
@@ -120,4 +124,103 @@ KERNEL_BIN_BASE_ADDR equ 0x70000    ;Kernel存放内存首址
 ```
 
 下面就是我们初始化内核的代码：
+```
+;------------  将kernel.bin中的segment拷贝到编译的地址 ----------------
+kernel_init:   ;0xd45
+  xor eax, eax
+  xor ebx, ebx      ;ebx用来记录程序头表地址
+  xor ecx, ecx      ;cx记录程序头表中的program header 数量
+  xor edx, edx      ;dx记录program header的尺寸，即e_phentsize
+
+  mov dx, [KERNEL_BIN_BASE_ADDR + 42]   ;距离文件偏移42字节的地方就是e_phentsize
+  mov ebx, [KERNEL_BIN_BASE_ADDR + 28]  ;e_phoff
+  add ebx, KERNEL_BIN_BASE_ADDR
+  mov cx, [KERNEL_BIN_BASE_ADDR + 44]   ;e_phnum
+
+.each_segment:
+  cmp byte [ebx + 0], PT_NULL   ;若p_type等于PT_NULL,说明此program未使用
+  je .PTNULL
+  ;为函数memcpyu压入参数，参数从右往左依次压入
+  ;函数原型类似于memcpy(dst, src, size)
+  push dword [ebx + 16]     ;program header中偏移16字节的地方是p_filesz,传入size参数
+  mov eax, [ebx + 4]        ;p_offset
+  add eax, KERNEL_BIN_BASE_ADDR     ;此时eax就是该段的物理地址
+  push eax                  ;压入memcpy的第二个参数，源地址
+  push dword [ebx + 8]      ;呀如函数memcpy的第一个参数，目的地址，p_vaddr
+  call mem_cpy
+  add esp, 12               ;清理栈中压入的三个参数
+.PTNULL:
+  add ebx, edx              ;edx为program header的尺寸，这里就是跳入下一个描述符
+  loop .each_segment
+  ret
+
+;----------- 逐字节拷贝 mem_cpy(dst, src, size)-------------
+;输入：栈中三个参数
+;输出：无
+;-----------------------------------------------------------
+mem_cpy:
+  cld                       ;控制eflags寄存器中的方向标志位，将其置0
+  push ebp
+  mov ebp, esp  ;构造栈帧
+  push ecx      ;rep指令用到了ecx，但ecx对于外层段的循环还有用，所以入栈备份
+  mov edi, [ebp + 8]        ;dst
+  mov esi, [ebp + 12]       ;src
+  mov ecx, [ebp + 16]       ;size
+  rep movsb                 ;逐字节拷贝,其中movs代表move string，其中源地址保存在esi，目的地址保存在edi中，其中edi和esi肯定会一直增加，而这个增加的功能由cld指令实现
+  ;这里的rep指令是repeat的意思，就是重复执行movsb，循环次数保存在ecx中
+
+  ;恢复环境
+  pop ecx                   ;因为外层ecx保存的是程序段数量，这里又要用作size，所以进行恢复
+  pop ebp
+  ret
+
+```
+上面代码也就是逐字拷贝，逻辑比较简单，这里有意思的一点是咱们自己实现了函数调用哈哈哈，还是挺有趣的，只不过上面是一个kernel初始化代码。
+所以我们此时再到loader主体里面进行调用，代码如下，注意这段代码是在开启页表后进行的，
+```
+;;;;;;;;;;;;;;;;;;;;;;;;; 此时可不用刷新流水线;;;;;;;;;;;;;;;;;;;;;;;;;
+;这里是因为一直处于32位之下，但是为了以防万一所以还是加上一个流水线刷新
+  jmp SELECTOR_CODE:enter_kernel        ;强制刷新流水线，更新gdt
+enter_kernel:
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  call kernel_init
+  mov esp, 0xc009f000           ;这里选用0xc009f000对应物理地址为0x9f000是一个尽量靠近可用区域边界且为整的地址，并不是必须得是这个，但这个地址确实不错
+  jmp KERNEL_ENTRY_POINT        ;用地址0x1500访问测试，这里相当与jmp $了
+
+```
+最后这里注意一点那就是内核函数main.c的编译，首先由于目前大多都是64位，所以gcc默认编译为64,此时我们需要指定编译版本
+```
+gcc -m32 -c main.c -o main.o
+```
+这里坑就来了，如果我们按照之前的ld方式进行链接会发现他自动生成了这样一个节
+![](http://imgsrc.baidu.com/super/pic/item/203fb80e7bec54e7145c36dbfc389b504ec26a46.jpg)
+这里如果我们不管的话，在kernel init部分的mem_cp会报错，所以这里我的解决方案如下：
+1. 一个简单的链接脚本保存为link.script，如下：
+```
+ENTRY(main)
+
+SECTIONS
+{
+  /DISCARD/ : {*(.note.gnu.propert)}
+}
+```
+2. 然后进行链接
+```
+ld -m elf_i386 main.o -T link.script -Ttext 0xc0001500 -e main -o ./kernel.bin
+```
+3. 然后再次进行去节处理（虽然有链接脚本，但还不够）
+```
+strip --remove-section=.note.gnu.property kernel.bin
+```
+然后我们再用readelf就发现段成功去掉了
+![](http://imgsrc.baidu.com/super/pic/item/c8177f3e6709c93d10512232da3df8dcd0005457.jpg)
+
+之后我们直接打入9号扇区就行啦
+```
+dd if=./kernel.bin of=../bochs/hd60M.img bs=512 count=200 seek=9 conv=notrunc
+```
+下面就是咱们目前的内存示意图了：
+![](http://imgsrc.baidu.com/super/pic/item/9f2f070828381f305215a26cec014c086f06f0e3.jpg)
+
+## 0x02 特权级
 

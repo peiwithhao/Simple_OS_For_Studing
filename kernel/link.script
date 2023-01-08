@@ -1,0 +1,6 @@
+ENTRY(main)
+
+SECTIONS
+{
+  /DISCARD/ : {*(.note.gnu.propert)}
+}

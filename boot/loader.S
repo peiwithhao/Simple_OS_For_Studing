@@ -191,7 +191,7 @@ enter_kernel:
   jmp KERNEL_ENTRY_POINT        ;用地址0x1500访问测试
 
 ;------------  将kernel.bin中的segment拷贝到编译的地址 ----------------
-kernel_init:
+kernel_init:   ;0xd45
   xor eax, eax
   xor ebx, ebx      ;ebx用来记录程序头表地址
   xor ecx, ecx      ;cx记录程序头表中的program header 数量
@@ -293,13 +293,13 @@ setup_page:
 
 ;----------------------------------------
 ;功能：读取硬盘n个扇区
-rd_disk_m_32:
+rd_disk_m_32:  ;0xcf6
 ;---------------------------------------
                         ;eax = 扇区LBA地址
                         ;ebx = 将数据写入的内存地址
                         ;ecx = 读入的扇区数
   mov esi, eax          ;备份eax
-  mov edi, ecx          ;备份ecx
+  mov di, cx          ;备份cx
 
 ;读写硬盘：
 ;第1步：设置要读取的扇区数
@@ -344,13 +344,13 @@ rd_disk_m_32:
   and al,0x88
 
   cmp al, 0x08  ;判断符号位是否与顺利执行时的符号一致
-  jnz .not_ready
+  jne .not_ready
 
 ;第5步：从0x1F0端口读取数据
-  mov eax,edi   ;edi为之前备份的读入扇区数
-  mov edx, 256
-  mul edx
-  mov ecx,eax    ;这里ecx来存放循环次数
+  mov ax,di   ;edi为之前备份的读入扇区数
+  mov dx, 256
+  mul dx
+  mov cx,ax    ;这里ecx来存放循环次数
 ;一个字为2字节，而额我们需要读入一个扇区，即为512字节，每次读入一个字，所以共需edi*256次
   mov dx, 0x1F0
   .go_on_read:
