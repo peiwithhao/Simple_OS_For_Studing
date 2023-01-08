@@ -31,7 +31,7 @@
 00000000000i[      ]   SB16 support: no
 00000000000i[      ]   USB support: no
 00000000000i[      ]   VGA extension support: vbe
-00000000000i[MEM0  ] allocated memory at 0x7f2fd5e9a010. after alignment, vector=0x7f2fd5e9b000
+00000000000i[MEM0  ] allocated memory at 0x7f3305576010. after alignment, vector=0x7f3305577000
 00000000000i[MEM0  ] 512.00MB
 00000000000i[MEM0  ] mem block size = 0x00100000, blocks=512
 00000000000i[MEM0  ] rom at 0xfffe0000/131072 ('/home/dawn/repos/OS_learning/bochs/share/bochs/BIOS-bochs-latest')
@@ -41,7 +41,7 @@
 00000000000i[DEV   ] PIIX3 PCI-to-ISA bridge present at device 1, function 0
 00000000000i[PLUGIN] init_dev of 'cmos' plugin device by virtual method
 00000000000i[CMOS  ] Using local time for initial clock
-00000000000i[CMOS  ] Setting initial clock to: Fri Jan  6 23:17:27 2023 (time0=1673065047)
+00000000000i[CMOS  ] Setting initial clock to: Sun Jan  8 03:15:17 2023 (time0=1673165717)
 00000000000i[PLUGIN] init_dev of 'dma' plugin device by virtual method
 00000000000i[DMA   ] channel 4 used by cascade
 00000000000i[PLUGIN] init_dev of 'pic' plugin device by virtual method
@@ -176,28 +176,78 @@
 00001529272i[BXVGA ] VBE known Display Interface b0c5
 00001532197i[VBIOS ] VBE Bios $Id: vbe.c,v 1.65 2014/07/08 18:02:25 vruppert Exp $
 00001876674i[BIOS  ] ata0-0: PCHS=121/16/63 translation=none LCHS=121/16/63
-00004896280i[XGUI  ] charmap update. Font Height is 16
+00004966336i[XGUI  ] charmap update. Font Height is 16
 00005753880i[BIOS  ] IDE time out
 00017844210i[BIOS  ] Booting from 0000:7c00
-02006913161i[      ] Ctrl-C detected in signal handler.
-02006913161i[      ] dbg: Quit
-02006913161i[CPU0  ] CPU is in protected mode (active)
-02006913161i[CPU0  ] CS.mode = 32 bit
-02006913161i[CPU0  ] SS.mode = 32 bit
-02006913161i[CPU0  ] EFER   = 0x00000000
-02006913161i[CPU0  ] | EAX=e0000011  EBX=00000900  ECX=00000000  EDX=00100003
-02006913161i[CPU0  ] | ESP=c0000900  EBP=00000000  ESI=000003ff  EDI=00000b82
-02006913161i[CPU0  ] | IOPL=0 id vip vif ac vm rf nt of df if tf SF zf af PF cf
-02006913161i[CPU0  ] | SEG sltr(index|ti|rpl)     base    limit G D
-02006913161i[CPU0  ] |  CS:0008( 0001| 0|  0) 00000000 ffffffff 1 1
-02006913161i[CPU0  ] |  DS:0010( 0002| 0|  0) 00000000 ffffffff 1 1
-02006913161i[CPU0  ] |  SS:0010( 0002| 0|  0) 00000000 ffffffff 1 1
-02006913161i[CPU0  ] |  ES:0010( 0002| 0|  0) 00000000 ffffffff 1 1
-02006913161i[CPU0  ] |  FS:0000( 0005| 0|  0) 00000000 0000ffff 0 0
-02006913161i[CPU0  ] |  GS:0018( 0003| 0|  0) 000b8000 00007fff 1 1
-02006913161i[CPU0  ] | EIP=00000d32 (00000d32)
-02006913161i[CPU0  ] | CR0=0xe0000011 CR2=0x00000000
-02006913161i[CPU0  ] | CR3=0x00100000 CR4=0x00000000
-02006913161i[CMOS  ] Last time is 1673065548 (Fri Jan  6 23:25:48 2023)
-02006913161i[XGUI  ] Exit
-02006913161i[SIM   ] quit_sim called with exit code 0
+00018076252e[CPU0  ] interrupt(): gate descriptor is not valid sys seg (vector=0x0e)
+00018076252e[CPU0  ] interrupt(): gate descriptor is not valid sys seg (vector=0x08)
+00018076252i[CPU0  ] CPU is in protected mode (active)
+00018076252i[CPU0  ] CS.mode = 32 bit
+00018076252i[CPU0  ] SS.mode = 32 bit
+00018076252i[CPU0  ] EFER   = 0x00000000
+00018076252i[CPU0  ] | EAX=00080102  EBX=00070000  ECX=003df25c  EDX=00000000
+00018076252i[CPU0  ] | ESP=c00008e4  EBP=c00008e8  ESI=00080ea8  EDI=00000da6
+00018076252i[CPU0  ] | IOPL=0 id vip vif ac vm RF nt of df if tf sf zf af pf cf
+00018076252i[CPU0  ] | SEG sltr(index|ti|rpl)     base    limit G D
+00018076252i[CPU0  ] |  CS:0008( 0001| 0|  0) 00000000 ffffffff 1 1
+00018076252i[CPU0  ] |  DS:0010( 0002| 0|  0) 00000000 ffffffff 1 1
+00018076252i[CPU0  ] |  SS:0010( 0002| 0|  0) 00000000 ffffffff 1 1
+00018076252i[CPU0  ] |  ES:0010( 0002| 0|  0) 00000000 ffffffff 1 1
+00018076252i[CPU0  ] |  FS:0000( 0005| 0|  0) 00000000 0000ffff 0 0
+00018076252i[CPU0  ] |  GS:0018( 0003| 0|  0) 000b8000 00007fff 1 1
+00018076252i[CPU0  ] | EIP=00000da5 (00000da5)
+00018076252i[CPU0  ] | CR0=0xe0000011 CR2=0x0105b5b9
+00018076252i[CPU0  ] | CR3=0x00100000 CR4=0x00000000
+00018076252e[CPU0  ] exception(): 3rd (13) exception with no resolution, shutdown status is 00h, resetting
+00018076252i[SYS   ] bx_pc_system_c::Reset(HARDWARE) called
+00018076252i[CPU0  ] cpu hardware reset
+00018076252i[APIC0 ] allocate APIC id=0 (MMIO enabled) to 0x0000fee00000
+00018076252i[CPU0  ] CPUID[0x00000000]: 00000005 756e6547 6c65746e 49656e69
+00018076252i[CPU0  ] CPUID[0x00000001]: 00000633 00010800 00000008 1fcbfbff
+00018076252i[CPU0  ] CPUID[0x00000002]: 00410601 00000000 00000000 00000000
+00018076252i[CPU0  ] CPUID[0x00000003]: 00000000 00000000 00000000 00000000
+00018076252i[CPU0  ] CPUID[0x00000004]: 00000000 00000000 00000000 00000000
+00018076252i[CPU0  ] CPUID[0x00000005]: 00000040 00000040 00000003 00000020
+00018076252i[PLUGIN] reset of 'pci' plugin device by virtual method
+00018076252i[PLUGIN] reset of 'pci2isa' plugin device by virtual method
+00018076252i[PLUGIN] reset of 'cmos' plugin device by virtual method
+00018076252i[PLUGIN] reset of 'dma' plugin device by virtual method
+00018076252i[PLUGIN] reset of 'pic' plugin device by virtual method
+00018076252i[PLUGIN] reset of 'pit' plugin device by virtual method
+00018076252i[PLUGIN] reset of 'vga' plugin device by virtual method
+00018076252i[PLUGIN] reset of 'floppy' plugin device by virtual method
+00018076252i[PLUGIN] reset of 'acpi' plugin device by virtual method
+00018076252i[PLUGIN] reset of 'ioapic' plugin device by virtual method
+00018076252i[PLUGIN] reset of 'keyboard' plugin device by virtual method
+00018076252i[PLUGIN] reset of 'harddrv' plugin device by virtual method
+00018076252i[PLUGIN] reset of 'pci_ide' plugin device by virtual method
+00018076252i[PLUGIN] reset of 'unmapped' plugin device by virtual method
+00018076252i[PLUGIN] reset of 'biosdev' plugin device by virtual method
+00018076252i[PLUGIN] reset of 'speaker' plugin device by virtual method
+00018076252i[PLUGIN] reset of 'extfpuirq' plugin device by virtual method
+00018076252i[PLUGIN] reset of 'parallel' plugin device by virtual method
+00018076252i[PLUGIN] reset of 'serial' plugin device by virtual method
+00018076252i[PLUGIN] reset of 'iodebug' plugin device by virtual method
+00018076253i[      ] Ctrl-C detected in signal handler.
+00018076253i[      ] Ctrl-C detected in signal handler.
+00018076253i[      ] dbg: Quit
+00018076253i[CPU0  ] CPU is in real mode (active)
+00018076253i[CPU0  ] CS.mode = 16 bit
+00018076253i[CPU0  ] SS.mode = 16 bit
+00018076253i[CPU0  ] EFER   = 0x00000000
+00018076253i[CPU0  ] | EAX=00000000  EBX=00000000  ECX=00000000  EDX=00000000
+00018076253i[CPU0  ] | ESP=00000000  EBP=00000000  ESI=00000000  EDI=00000000
+00018076253i[CPU0  ] | IOPL=0 id vip vif ac vm rf nt of df if tf sf zf af pf cf
+00018076253i[CPU0  ] | SEG sltr(index|ti|rpl)     base    limit G D
+00018076253i[CPU0  ] |  CS:f000( 1e00| 0|  0) ffff0000 0000ffff 0 0
+00018076253i[CPU0  ] |  DS:0000( 0000| 0|  0) 00000000 0000ffff 0 0
+00018076253i[CPU0  ] |  SS:0000( 0000| 0|  0) 00000000 0000ffff 0 0
+00018076253i[CPU0  ] |  ES:0000( 0000| 0|  0) 00000000 0000ffff 0 0
+00018076253i[CPU0  ] |  FS:0000( 0000| 0|  0) 00000000 0000ffff 0 0
+00018076253i[CPU0  ] |  GS:0000( 0000| 0|  0) 00000000 0000ffff 0 0
+00018076253i[CPU0  ] | EIP=0000fff0 (0000fff0)
+00018076253i[CPU0  ] | CR0=0x60000010 CR2=0x00000000
+00018076253i[CPU0  ] | CR3=0x00000000 CR4=0x00000000
+00018076253i[CMOS  ] Last time is 1673165721 (Sun Jan  8 03:15:21 2023)
+00018076253i[XGUI  ] Exit
+00018076253i[SIM   ] quit_sim called with exit code 0

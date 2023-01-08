@@ -146,6 +146,13 @@ p_mode_start:
 
   mov byte [gs:160], 'p'
 
+;------------ 加载kernel ---------------------
+  mov eax, KERNEL_START_SECTOR ;kernel.bin所在的扇区号
+  mov ebx, KERNEL_BIN_BASE_ADDR     ;从磁盘读出后，写入到ebx指定的地址
+  mov ecx, 200                      ;读入的扇区数
+  call rd_disk_m_32                 ;上述类似与传递参数
+
+
 ;创建页目录及页表并初始化页内存位图
   call setup_page
 
@@ -162,7 +169,7 @@ p_mode_start:
   
   add esp, 0xc0000000   ;将栈指针同样映射到内核地址
 
-  ;把也目录地址附给cr3
+  ;把页目录地址附给cr3
   mov eax, PAGE_DIR_TABLE_POS
   mov cr3, eax
 
@@ -174,9 +181,63 @@ p_mode_start:
   ;在开启分页后，用gdt新的地址重新加载
   lgdt [gdt_ptr]    ;重新加载
 
-  mov byte [gs:160], 'V'    ;视频段段基址已经被更新，用字符V表示vitual addr
+;;;;;;;;;;;;;;;;;;;;;;;;; 此时可不用刷新流水线;;;;;;;;;;;;;;;;;;;;;;;;;
+;这里是因为一直处于32位之下，但是为了以防万一所以还是加上一个流水线刷新
+  jmp SELECTOR_CODE:enter_kernel        ;强制刷新流水线，更新gdt
+enter_kernel:
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  call kernel_init
+  mov esp, 0xc009f000
+  jmp KERNEL_ENTRY_POINT        ;用地址0x1500访问测试
 
-  jmp $
+;------------  将kernel.bin中的segment拷贝到编译的地址 ----------------
+kernel_init:
+  xor eax, eax
+  xor ebx, ebx      ;ebx用来记录程序头表地址
+  xor ecx, ecx      ;cx记录程序头表中的program header 数量
+  xor edx, edx      ;dx记录program header的尺寸，即e_phentsize
+
+  mov dx, [KERNEL_BIN_BASE_ADDR + 42]   ;距离文件偏移42字节的地方就是e_phentsize
+  mov ebx, [KERNEL_BIN_BASE_ADDR + 28]  ;e_phoff
+  add ebx, KERNEL_BIN_BASE_ADDR 
+  mov cx, [KERNEL_BIN_BASE_ADDR + 44]   ;e_phnum
+
+.each_segment:
+  cmp byte [ebx + 0], PT_NULL   ;若p_type等于PT_NULL,说明此program未使用
+  je .PTNULL
+  ;为函数memcpyu压入参数，参数从右往左依次压入
+  ;函数原型类似于memcpy(dst, src, size)
+  push dword [ebx + 16]     ;program header中偏移16字节的地方是p_filesz,传入size参数
+  mov eax, [ebx + 4]        ;p_offset
+  add eax, KERNEL_BIN_BASE_ADDR     ;此时eax就是该段的物理地址
+  push eax                  ;压入memcpy的第二个参数，源地址
+  push dword [ebx + 8]      ;呀如函数memcpy的第一个参数，目的地址，p_vaddr
+  call mem_cpy
+  add esp, 12               ;清理栈中压入的三个参数
+.PTNULL:
+  add ebx, edx              ;edx为program header的尺寸，这里就是跳入下一个描述符
+  loop .each_segment 
+  ret
+
+;----------- 逐字节拷贝 mem_cpy(dst, src, size)-------------
+;输入：栈中三个参数
+;输出：无
+;-----------------------------------------------------------
+mem_cpy:
+  cld                       ;控制eflags寄存器中的方向标志位，将其置0
+  push ebp
+  mov ebp, esp  ;构造栈帧
+  push ecx      ;rep指令用到了ecx，但ecx对于外层段的循环还有用，所以入栈备份
+  mov edi, [ebp + 8]        ;dst
+  mov esi, [ebp + 12]       ;src
+  mov ecx, [ebp + 16]       ;size
+  rep movsb                 ;逐字节拷贝,其中movs代表move string，其中源地址保存在esi，目的地址保存在edi中，其中edi和esi肯定会一直增加，而这个增加的功能由cld指令实现
+  ;这里的rep指令是repeat的意思，就是重复执行movsb，循环次数保存在ecx中
+
+  ;恢复环境
+  pop ecx                   ;因为外层ecx保存的是程序段数量，这里又要用作size，所以进行恢复
+  pop ebp
+  ret
 
 ;-------------  创建页目录以及页表 ------------
 setup_page:
@@ -228,4 +289,73 @@ setup_page:
   inc esi
   add eax, 0x1000
   loop .create_kernel_pde
+  ret
+
+;----------------------------------------
+;功能：读取硬盘n个扇区
+rd_disk_m_32:
+;---------------------------------------
+                        ;eax = 扇区LBA地址
+                        ;ebx = 将数据写入的内存地址
+                        ;ecx = 读入的扇区数
+  mov esi, eax          ;备份eax
+  mov edi, ecx          ;备份ecx
+
+;读写硬盘：
+;第1步：设置要读取的扇区数
+  mov dx, 0x1F2
+  mov al, cl
+  out dx, al        ;读取的扇区数
+
+  mov eax, esi      ;恢复eax
+
+;第2步：将LBA地址送入0x1F3~0x1F6
+  ;将LBA地址0～7存入0x1F3
+  mov dx,0x1F3
+  out dx,al
+
+  ;LBA地址8～15位写入0x1F4
+  mov cl,8          
+  shr eax,cl        ;将eax中数据右移8位，这样就可以接着使用al来取中间8位了
+  mov dx,0x1F4
+  out dx,al
+
+  ;LBA地址16～23位写入0x1F5
+  shr eax,cl
+  mov dx,0x1F5
+  out dx,al
+
+  shr eax,cl
+  and al,0x0f       ;取LBR第24～27位
+  or al,0xe0        ;设置7～4位为1110,指明LBA寻址模式
+  mov dx,0x1F6
+  out dx,al
+
+;第3步，向0x1F7写入读命令，即为0x20
+  mov dx, 0x1f7
+  mov al, 0x20
+  out dx, al
+
+;第4步：检测硬盘状态
+  .not_ready:
+  ;同一端口，写时表示写入命令字，读时表示读入硬盘状态
+  nop
+  in al, dx     ;此时0x1F7充当Status寄存器
+  and al,0x88
+
+  cmp al, 0x08  ;判断符号位是否与顺利执行时的符号一致
+  jnz .not_ready
+
+;第5步：从0x1F0端口读取数据
+  mov eax,edi   ;edi为之前备份的读入扇区数
+  mov edx, 256
+  mul edx
+  mov ecx,eax    ;这里ecx来存放循环次数
+;一个字为2字节，而额我们需要读入一个扇区，即为512字节，每次读入一个字，所以共需edi*256次
+  mov dx, 0x1F0
+  .go_on_read:
+  in ax,dx
+  mov [ebx], ax
+  add ebx, 2
+  loop .go_on_read
   ret
