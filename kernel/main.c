@@ -1,8 +1,17 @@
 #include "print.h"
 #include "init.h"
-void main(void){
+#include "debug.h"
+#include "string.h"
+
+int main(void){
   put_str("I am Kernel\n");
   init_all();
-  asm volatile("sti");  //为演示中断处理，在此临时开中断
+  char* str1 = "Hello";
+  char* str2 = "World";
+  char* str3 = strcat(str1,str2);
+  put_str(str3);
+  put_str("\n");
+  ASSERT(1==2);
   while(1); 
+  return 0;
 }

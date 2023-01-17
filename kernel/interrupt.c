@@ -8,6 +8,8 @@
 #define PIC_M_DATA 0x21             //主片数据端口
 #define PIC_S_CTRL 0xA0             //从片控制端口
 #define PIC_S_DATA 0xA1             //从片数据端口
+#define EFLAGS_IF 0x00000200        //eflags寄存器中的if位为1
+#define GET_EFLAGS(EFLAG_VAR) asm volatile("pushfl; pop %0" : "=g" (EFLAG_VAR))   //pushfl是指将eflags寄存器值压入栈顶
 
 /*中断门描述符结构体*/
 struct gate_desc {
@@ -44,7 +46,7 @@ static void pic_init(void){
   outb(PIC_M_DATA, 0xfe);           //OCW1:IRQ0外全部屏蔽
   outb(PIC_S_DATA, 0xff);           //OCW1:IRQ8~15全部屏蔽
 
-  put_str(" pic init done!\n");
+  put_str("     pic init done!\n");
 }
 
 /*创建中断门描述符*/
@@ -62,7 +64,7 @@ static void idt_desc_init(void){
   for(i = 0;i < IDT_DESC_CNT; i++){
     make_idt_desc(&idt[i],IDT_DESC_ATTR_DPL0, intr_entry_table[i]);
   }
-  put_str("idt_desc_init_done");
+  put_str("idt_desc_init_done!\n");
 }
 
 /* 通用的中断处理函数，一般用在出现异常的时候处理 */
@@ -105,6 +107,45 @@ static void exception_init(void){
   intr_name[17] = "#AC Alignment Check Exception";
   intr_name[18] = "#MC Machine-Check Exception";
   intr_name[19] = "#XF SIMD Floating-Point Exception";
+  put_str("     exception init done \n");
+}
+
+/* 开中断并返回开中断前的状态 */
+enum intr_status intr_enable(){
+  enum intr_status old_status;
+  if (INTR_ON == intr_get_status()){
+    old_status = INTR_ON;
+    return old_status;
+  }else{
+    old_status = INTR_OFF;
+    asm volatile("sti");     //开中断，sti指令将IF位置为1
+    return old_status;
+  }
+}
+
+/* 关中断并返回关中断前的状态 */
+enum intr_status intr_disable(){
+  enum intr_status old_status;
+  if(INTR_ON == intr_get_status()){
+    old_status = INTR_OFF;
+    asm volatile("cli" : : : "memory");
+    return old_status;
+  }else{
+    old_status = INTR_OFF;
+    return old_status;
+  }
+}
+
+/* 将中断状态设置为status */
+enum intr_status intr_set_status(enum intr_status status){
+  return status & INTR_ON ? intr_enable() : intr_disable();
+}
+
+/* 获取当前中断状态 */
+enum intr_status intr_get_status(){
+  uint32_t eflags = 0;
+  GET_EFLAGS(eflags);
+  return (EFLAGS_IF & eflags) ? INTR_ON : INTR_OFF ; 
 }
 
 /*完成有关中断的所有初始化工作*/
