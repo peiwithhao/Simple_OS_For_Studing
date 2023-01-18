@@ -2,6 +2,8 @@
 #define __KERNEL_BITMAP_H
 #include "global.h"
 #define BITMAP_MASK 1
+
+typedef int bool;
 struct bitmap {
   uint32_t btmp_bytes_len;      //位图的字节长度
   /* 在遍历位图的时候，整体以字节为单位，细节上是以位为单位，因此这里的指针为单字节 */

@@ -4,6 +4,7 @@ Merging program properties
 Removed property 0xc0000002 to merge build/main.o (0x3) and build/kernel.o (not found)
 Removed property 0xc0000002 to merge build/main.o (not found) and build/debug.o (0x3)
 Removed property 0xc0000002 to merge build/main.o (not found) and build/string.o (0x3)
+Removed property 0xc0000002 to merge build/main.o (not found) and build/bitmap.o (0x3)
 
 Allocating common symbols
 Common symbol       size              file
@@ -37,6 +38,10 @@ Discarded input sections
                 0x0000000000000000        0x0 build/string.o
  .note.gnu.property
                 0x0000000000000000       0x1c build/string.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 build/bitmap.o
+ .note.gnu.property
+                0x0000000000000000       0x1c build/bitmap.o
 
 Memory Configuration
 
@@ -54,6 +59,7 @@ LOAD build/kernel.o
 LOAD build/print.o
 LOAD build/debug.o
 LOAD build/string.o
+LOAD build/bitmap.o
                 [!provide]                        PROVIDE (__executable_start = SEGMENT_START ("text-segment", 0x8048000))
                 0x00000000080480d4                . = (SEGMENT_START ("text-segment", 0x8048000) + SIZEOF_HEADERS)
 
@@ -123,7 +129,7 @@ LOAD build/string.o
 .plt.sec
  *(.plt.sec)
 
-.text           0x00000000c0001500      0xf10
+.text           0x00000000c0001500     0x1166
  *(.text.unlikely .text.*_unlikely .text.unlikely.*)
  *(.text.exit .text.exit.*)
  *(.text.startup .text.startup.*)
@@ -163,6 +169,11 @@ LOAD build/string.o
                 0x00000000c00022da                strrchr
                 0x00000000c000233c                strcat
                 0x00000000c00023aa                strchrs
+ .text          0x00000000c0002410      0x256 build/bitmap.o
+                0x00000000c0002410                bitmap_init
+                0x00000000c0002433                bitmap_scan_test
+                0x00000000c0002477                bitmap_scan
+                0x00000000c00025ac                bitmap_set
  *(.gnu.warning)
 
 .fini
@@ -173,7 +184,7 @@ LOAD build/string.o
                 0x00000000c0003000                . = ALIGN (CONSTANT (MAXPAGESIZE))
                 0x00000000c0003000                . = SEGMENT_START ("rodata-segment", (ALIGN (CONSTANT (MAXPAGESIZE)) + (. & (CONSTANT (MAXPAGESIZE) - 0x1))))
 
-.rodata         0x00000000c0003000      0x3c4
+.rodata         0x00000000c0003000      0x42b
  *(.rodata .rodata.* .gnu.linkonce.r.*)
  .rodata        0x00000000c0003000       0x35 build/main.o
  .rodata        0x00000000c0003035        0xa build/init.o
@@ -182,6 +193,7 @@ LOAD build/string.o
  .rodata        0x00000000c00032c4       0x23 build/timer.o
  .rodata        0x00000000c00032e7       0x31 build/debug.o
  .rodata        0x00000000c0003318       0xac build/string.o
+ .rodata        0x00000000c00033c4       0x67 build/bitmap.o
 
 .rodata1
  *(.rodata1)
@@ -190,19 +202,21 @@ LOAD build/string.o
  *(.eh_frame_hdr)
  *(.eh_frame_entry .eh_frame_entry.*)
 
-.eh_frame       0x00000000c00033c4      0x38c
+.eh_frame       0x00000000c000342c      0x414
  *(.eh_frame)
- .eh_frame      0x00000000c00033c4       0x3c build/main.o
- .eh_frame      0x00000000c0003400       0x20 build/init.o
+ .eh_frame      0x00000000c000342c       0x3c build/main.o
+ .eh_frame      0x00000000c0003468       0x20 build/init.o
                                          0x38 (size before relaxing)
- .eh_frame      0x00000000c0003420      0x168 build/interrupt.o
+ .eh_frame      0x00000000c0003488      0x168 build/interrupt.o
                                         0x180 (size before relaxing)
- .eh_frame      0x00000000c0003588       0x6c build/timer.o
+ .eh_frame      0x00000000c00035f0       0x6c build/timer.o
                                          0x84 (size before relaxing)
- .eh_frame      0x00000000c00035f4       0x1c build/debug.o
+ .eh_frame      0x00000000c000365c       0x1c build/debug.o
                                          0x34 (size before relaxing)
- .eh_frame      0x00000000c0003610      0x140 build/string.o
+ .eh_frame      0x00000000c0003678      0x140 build/string.o
                                         0x158 (size before relaxing)
+ .eh_frame      0x00000000c00037b8       0x88 build/bitmap.o
+                                         0xa0 (size before relaxing)
  *(.eh_frame.*)
 
 .gcc_except_table
@@ -300,6 +314,7 @@ LOAD build/string.o
  .data          0x00000000c0005084        0x8 build/print.o
  .data          0x00000000c000508c        0x0 build/debug.o
  .data          0x00000000c000508c        0x0 build/string.o
+ .data          0x00000000c000508c        0x0 build/bitmap.o
 
 .data1
  *(.data1)
@@ -317,6 +332,7 @@ LOAD build/string.o
  .bss           0x00000000c00051a8        0x0 build/timer.o
  .bss           0x00000000c00051a8        0x0 build/debug.o
  .bss           0x00000000c00051a8        0x0 build/string.o
+ .bss           0x00000000c00051a8        0x0 build/bitmap.o
  *(COMMON)
  *fill*         0x00000000c00051a8       0x18 
  COMMON         0x00000000c00051c0      0x124 build/interrupt.o
@@ -357,6 +373,7 @@ LOAD build/string.o
  .comment       0x000000000000002b       0x2c build/timer.o
  .comment       0x000000000000002b       0x2c build/debug.o
  .comment       0x000000000000002b       0x2c build/string.o
+ .comment       0x000000000000002b       0x2c build/bitmap.o
 
 .gnu.build.attributes
  *(.gnu.build.attributes .gnu.build.attributes.*)

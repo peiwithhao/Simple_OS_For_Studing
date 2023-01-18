@@ -220,6 +220,7 @@ all : mk_dir build hd
 ```
 #ifndef __LIB_STRING_H
 #define __LIB_STRING_H
+#define NULL 0
 #include "stdint.h"
 void memset(void* dst_, uint8_t value, uint32_t size); //单字节复制，指定目的地
 void memcpy(void* dst_, void* src_, uint32_t size);     //多字节复制，指定目的地
@@ -254,6 +255,7 @@ uint32_t strchrs(const char* str, uint8_t ch);      //计算相同字符数量
 #define __KERNEL_BITMAP_H
 #include "global.h"
 #define BITMAP_MASK 1
+typedef int bool;
 struct bitmap {
   uint32_t btmp_bytes_len;      //位图的字节长度
   /* 在遍历位图的时候，整体以字节为单位，细节上是以位为单位，因此这里的指针为单字节 */
@@ -269,4 +271,120 @@ void bitmap_set(struct bitmap* btmp, uint32_t bit_idx, int8_t value);
 
 ```
 
-可以看到位图就是类似于一个字符串而已，只不过他的粒度更细。
+可以看到位图就是类似于一个字符串而已，只不过他的粒度更细。下面给出具体实现代码,他同bitmap.h一样存放在kernel目录下：
+```
+#include "bitmap.h"
+#include "stdint.h"
+#include "string.h"
+#include "print.h"
+#include "interrupt.h"
+#include "debug.h"
+
+/* 将位图初始化 */
+void bitmap_init(struct bitmap* btmp){
+  memset(btmp, 0, btmp->btmp_bytes_len);
+}
+
+/* 判断bit_idx位是否为1,若为1,则返回true，否则返回false */
+bool bitmap_scan_test(struct bitmap* btmp, uint32_t bit_idx){
+  uint32_t byte_idx = bit_idx/8;                //这里是求所在位所处的字节偏移
+  uint32_t bit_odd = bit_idx%8;                //这里是求在字节中的位偏移
+  return (btmp->bits[byte_idx] & (BITMAP_MASK << bit_odd));     //与1进行与操作，查看是否为1
+}
+
+/* 在位图中申请连续cnt个位，成功则返回其起始位下标，否则返回-1 */
+int bitmap_scan(struct bitmap* btmp, uint32_t cnt){
+  uint32_t idx_byte = 0;                    //记录空闲位所在的字节
+  /* 逐字节比较，蛮力法 */
+  while((0xff == btmp->bits[idx_byte]) && (idx_byte < btmp->btmp_bytes_len)){
+    /* 1表示已经分配，若为0xff则说明该字节内已经无空闲位，到下一字节再找 */
+    idx_byte++;
+  }
+
+  ASSERT(idx_byte < btmp->btmp_bytes_len);
+  if(idx_byte == btmp->btmp_bytes_len){     //这里若字节等于长度的话，那说明没有了剩余空间了
+    return -1;
+  }
+
+  /* 这里若找到了空闲位，则在该字节内逐位比对，返回空闲位的索引 */
+  int idx_bit = 0;
+  /* 同btmp->bits[idx_byte]这个字节逐位对比 */
+  while((uint8_t)(BITMAP_MASK << idx_bit) & btmp->bits[idx_byte]){ //注意这里&是按位与，所有位都为0才返回0,跳出循环
+    idx_bit++;
+  }
+
+  int bit_idx_start = idx_byte * 8 + idx_bit;       //这里就是空闲位在位图中的坐标
+  if(cnt == 1){
+    return bit_idx_start;           //若咱们只申请数量为1
+  }
+
+  uint32_t bit_left = (btmp->btmp_bytes_len*8 - bit_idx_start);     //记录还剩下多少个位
+  uint32_t next_bit = bit_idx_start + 1;
+  uint32_t count = 1;               //用来记录找到空闲位的个数
+
+  bit_idx_start = -1;               //将其置-1,若找不到连续的位就返回
+  while(bit_left-- >0){
+    if(!(bitmap_scan_test(btmp,next_bit))){
+      count++;
+    }else{
+      count = 0;
+    }
+    if(count == cnt){
+      bit_idx_start = next_bit - cnt + 1 ;
+      break;
+    }
+    next_bit ++ ;
+  }
+  return bit_idx_start;
+}
+
+/* 将位图btmp的bit_idx位设置为value */
+void bitmap_set(struct bitmap* btmp, uint32_t bit_idx, int8_t value){
+  ASSERT((value == 0) || (value == 1));
+  uint32_t byte_idx = bit_idx / 8;          //这俩同上
+  uint32_t bit_odd = bit_idx % 8;
+  /* 这里进行移位再进行操作 */
+  if(value){                                //value为1
+    btmp->bits[byte_idx] |= (BITMAP_MASK << bit_odd);
+  }else{                                    //value为0
+    btmp->bits[byte_idx] &= ~(BITMAP_MASK << bit_odd);
+  }
+}
+```
+
+## 0x03 内存管理系统
+终于到了今天的重点，我们之前的一切实践都是为了这一项做铺垫，这里我们先介绍几点基础知识。
+### 1.基础知识们
+今天的知识点转移阵地辣，首先我们需要做的工作首先是规划一下咱们的内存池，这个内存池大家可以看作一个资源库，什么资源呢，就是咱们的内存，好像说了点废话。
+在前面咱们实现了分页机制，所以现在地址分为了虚拟地址和物理地址，为了有效分配他们，所以这里我们需要实现虚拟内存地址池和物理内存地址池。
+
+---
+首先咱们来讨论物理内存地址池。这里我们知道咱们的程序和内核都是运行在物理内存之中的，因此我们再次划分，将物理内存地址池再划分为用户物理内存池和内核物理内存池
+![](http://imgsrc.baidu.com/super/pic/item/b21c8701a18b87d6129205da420828381e30fd27.jpg)
+为了图方便，我们将内存池的划分对半砍，如上图
+咱们接着来说虚拟内存地址池，这里我们都知道。用户程序的地址是在链接过程就已经定下来了，而由于使用的是虚拟地址，也就是说不同进程之间的地址选择互不干涉，但程序在运行的过程中会有着动态内存的申请，比如说malloc，free等，这样我们就必须向程序返回一个虚拟内存块，但是如何知道哪些是空闲可以分配的呢，所以说这里我们也需要有虚拟内存地址池。
+而虽然说内核程序完全可以自己随便找地方存，但是这样一定会存在些不可预料的错误，因此内核也需要通过内核管理系统申请内存，所以这里我们也需要有内核的虚拟地址池。当他们申请内存的时候，首先从虚拟地址池分配虚拟地址，再从物理地址池中分配物理内存，然后在内核将这两种地址建立好映射关系。
+如下：
+![](http://imgsrc.baidu.com/super/pic/item/d058ccbf6c81800ad3eb20cbf43533fa838b47ed.jpg)
+然后这里给出对应的头文件，我们定义为kernel/memory.h
+```
+#ifndef __KERNEL_MEMORY_H
+#define __KERNEL_MEMORY_H
+#include "stdint.h"
+#include "bitmap.h"
+
+/* 虚拟地址池，用于虚拟地址管理 */
+struct virtual_addr {
+  struct bitmap vaddr_bitmap;
+  uint32_t vaddr_start;
+};
+
+extern struct pool kernel_pool, user_pool;
+void mem_init(void);
+#endif
+```
+
+这里我们即将来实现咱们的内存管理，首先我们规划一下，还记得之前我们在loader.S中定义的栈地址吗,我们那时候将内核的栈地址定义在了虚拟地址0xc009f000,是这样的，我们这里先解释一个简单的知识点，是我们之后会遇到的PCB(程序控制块)，而我们将来所实现的PCB都必须要占用1页内存，也就是4KB大小的内存空间，因此PCB的内容首地址必须是0xXXXXX000,末尾地址必须是0xXXXXXfff.
+这里我们再来简单解释一下PCB的结构（这里不做细说，因为本次的主题不是他，这里仅仅是为他预留空间），首先首地址向上是存放着一些进程或线程的信息，而高处0xXXXXXfff向下就是栈空间了，所以我们之前定义的栈首地址为0xc009f000就是为main主线程所预留的栈空间同时也是为了PCB所预留的空间，因此我们这里就将PCB的首地址定义为0xc009e000。
+说完PCB，我们还需要讨论一下上面我们解释的位图，这里一个位图单位表示一页，因为我们目前分配的是512MB，可以知道我们一共分配有512MB/4KB = 128K页，所以共需要我们的位图大小为128K/8 = 16KB，所以我们需要16KB/4KB = 4个页才能完整存放咱们的位图。因此我们将位图放在咱们的PCB前面，也就是0xc009a000,这里离PCB有4个页，刚好够。
+这里我们立即来进行实现：
