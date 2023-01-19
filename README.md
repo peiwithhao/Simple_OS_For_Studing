@@ -282,7 +282,7 @@ void bitmap_set(struct bitmap* btmp, uint32_t bit_idx, int8_t value);
 
 /* 将位图初始化 */
 void bitmap_init(struct bitmap* btmp){
-  memset(btmp, 0, btmp->btmp_bytes_len);
+  memset(btmp->bits, 0, btmp->btmp_bytes_len);
 }
 
 /* 判断bit_idx位是否为1,若为1,则返回true，否则返回false */
@@ -354,7 +354,7 @@ void bitmap_set(struct bitmap* btmp, uint32_t bit_idx, int8_t value){
 
 ## 0x03 内存管理系统
 终于到了今天的重点，我们之前的一切实践都是为了这一项做铺垫，这里我们先介绍几点基础知识。
-### 1.基础知识们
+### 1.基础知识
 今天的知识点转移阵地辣，首先我们需要做的工作首先是规划一下咱们的内存池，这个内存池大家可以看作一个资源库，什么资源呢，就是咱们的内存，好像说了点废话。
 在前面咱们实现了分页机制，所以现在地址分为了虚拟地址和物理地址，为了有效分配他们，所以这里我们需要实现虚拟内存地址池和物理内存地址池。
 
@@ -366,6 +366,8 @@ void bitmap_set(struct bitmap* btmp, uint32_t bit_idx, int8_t value){
 而虽然说内核程序完全可以自己随便找地方存，但是这样一定会存在些不可预料的错误，因此内核也需要通过内核管理系统申请内存，所以这里我们也需要有内核的虚拟地址池。当他们申请内存的时候，首先从虚拟地址池分配虚拟地址，再从物理地址池中分配物理内存，然后在内核将这两种地址建立好映射关系。
 如下：
 ![](http://imgsrc.baidu.com/super/pic/item/d058ccbf6c81800ad3eb20cbf43533fa838b47ed.jpg)
+
+### 2.实现
 然后这里给出对应的头文件，我们定义为kernel/memory.h
 ```
 #ifndef __KERNEL_MEMORY_H
@@ -387,4 +389,220 @@ void mem_init(void);
 这里我们即将来实现咱们的内存管理，首先我们规划一下，还记得之前我们在loader.S中定义的栈地址吗,我们那时候将内核的栈地址定义在了虚拟地址0xc009f000,是这样的，我们这里先解释一个简单的知识点，是我们之后会遇到的PCB(程序控制块)，而我们将来所实现的PCB都必须要占用1页内存，也就是4KB大小的内存空间，因此PCB的内容首地址必须是0xXXXXX000,末尾地址必须是0xXXXXXfff.
 这里我们再来简单解释一下PCB的结构（这里不做细说，因为本次的主题不是他，这里仅仅是为他预留空间），首先首地址向上是存放着一些进程或线程的信息，而高处0xXXXXXfff向下就是栈空间了，所以我们之前定义的栈首地址为0xc009f000就是为main主线程所预留的栈空间同时也是为了PCB所预留的空间，因此我们这里就将PCB的首地址定义为0xc009e000。
 说完PCB，我们还需要讨论一下上面我们解释的位图，这里一个位图单位表示一页，因为我们目前分配的是512MB，可以知道我们一共分配有512MB/4KB = 128K页，所以共需要我们的位图大小为128K/8 = 16KB，所以我们需要16KB/4KB = 4个页才能完整存放咱们的位图。因此我们将位图放在咱们的PCB前面，也就是0xc009a000,这里离PCB有4个页，刚好够。
-这里我们立即来进行实现：
+这里我们立即来实现，这里也就是一点初始化代码而已：
+```
+#include "memory.h"
+#include "stdint.h"
+#include "print.h"
+
+#define PG_SIZE 4096    //4K
+/************************ 位图地址 ****************************/
+#define MEM_BITMAP_BASE 0xc009a000
+/**************************************************************/
+
+/* 0xc0000000是内核从虚拟地址3G开始
+ * 而1MB指的是跨过低端1MB内存
+ * */
+
+/* 0xc0000000是内核从虚拟地址3G起
+ * 0x100000是跨过低端1MB内存， 使虚拟地址在逻辑上连续*/
+#define K_HEAP_START 0xc0100000         //设置堆起始地址用来进行动态分配
+
+/* 内存池结构，生成两个实例用于管理内核内存池和用户内存池 */
+struct pool{
+  struct bitmap pool_bitmap;    //本内存池用到的位图结构，用于管理物理内存
+  uint32_t phy_addr_start;      //本内存池的物理起始地址
+  uint32_t pool_size;
+};
+
+struct pool kernel_pool, user_pool; //生成内核物理内存池和用户物理内存池
+struct virtual_addr kernel_vaddr;   //此结构用来给内核分配虚拟地址
+
+/* 初始化内存池 */
+static void mem_pool_init(uint32_t all_mem){    //这里的all_mem传递的参数是总共的物理内存
+  put_str("     mem_poool_init_start \n ");
+  uint32_t page_table_size = PG_SIZE * 256;     //这里只计算769～1022是因为这一部分是属于内核进程
+  //页表大小 = 1页的页目录表 + 第0项和第768个页目录项指向同一个页表 + 第769～1022个页目录项共指向254个页表，共256个页框
+  uint32_t used_mem = page_table_size + 0x100000;   //0x100000为低端1MB内存
+  uint32_t free_mem = all_mem - used_mem;
+  uint16_t all_free_pages = free_mem/PG_SIZE;
+
+  uint16_t kernel_free_pages = all_free_pages /2;
+  uint16_t user_free_pages = all_free_pages - kernel_free_pages;
+  /* 上面为了简化处理没有考虑余数，所以可能会丢失内存，但是这也不打紧，因为位图表示内存会小于物理内存 */
+  uint32_t kbm_length = kernel_free_pages / 8;      //kernel_bitmap的长度，以字节为单位
+  uint32_t ubm_length = user_free_pages / 8;        //user_bitmap的长度，以字节为单位
+
+  uint32_t kp_start = used_mem;     //kernel_pool_start 内核物理内存池起始地址
+  uint32_t up_start = kp_start + kernel_free_pages * PG_SIZE;   //user_pool_start 用户物理内存池起始地址
+
+  kernel_pool.phy_addr_start = kp_start;
+  user_pool.phy_addr_start = up_start;
+
+  kernel_pool.pool_size = kernel_free_pages * PG_SIZE;
+  user_pool.pool_size = user_free_pages * PG_SIZE;
+
+  kernel_pool.pool_bitmap.btmp_bytes_len = kbm_length;
+  user_pool.pool_bitmap.btmp_bytes_len = ubm_length;
+
+/******************* 内核内存池和用户内存池位图 *******************
+ * 位图是全局的数据，长度不固定
+ * 全局或静态的数组需要在编译时知道其长度
+ * 而我们需要根据总内存大小算出需要多少字节，
+ * 所以改为指定一块来生成位图
+ * ****************************************************************/
+//内核使用的最高地址是0xc009f000,这里是主线程的栈地址，这里咱们内核占了物理地址的低1MB，但是大概率用不了这么多
+//咱们有512MB的内存，所以位图就需要4页
+//所以内核内存池的位图定在MEM_BITMAP_BASE(0xc009a000)这里
+  kernel_pool.pool_bitmap.bits = (void*)MEM_BITMAP_BASE;
+  //用户内存池的位图就当跟屁虫辣
+  user_pool.pool_bitmap.bits = (void*)(MEM_BITMAP_BASE + kbm_length);
+
+/*********************** 输出内存池信息 ***************************/
+  put_str("         kernel_pool_bitmap_start:");
+  put_int((int)kernel_pool.pool_bitmap.bits);
+  put_str(" kernel_pool_phy_addr_start:");
+  put_int((int)kernel_pool.phy_addr_start);
+  put_str("\n");
+  put_str("         user_pool_bitmap_start:");
+  put_int((int)user_pool.pool_bitmap.bits);
+  put_str(" user_pool_phy_addr_start");
+  put_int((int)user_pool.phy_addr_start);
+  put_str("\n");
+
+  /* 将位图置为0 */
+  bitmap_init(&kernel_pool.pool_bitmap);
+  bitmap_init(&user_pool.pool_bitmap);
+
+  /* 下面初始化内核虚拟地址的位图，按照实际物理内存大小生成数组 */
+  kernel_vaddr.vaddr_bitmap.btmp_bytes_len = kbm_length;         //用于维护内核堆的虚拟地址，所以要和内核内存池大小一致
+
+  /* 位图的数组指向一块未使用的内存
+   * 目前定位在内核内存池和用户内存池之外*/
+  kernel_vaddr.vaddr_bitmap.bits = (void*)(MEM_BITMAP_BASE + kbm_length + ubm_length);
+  kernel_vaddr.vaddr_start = K_HEAP_START;
+  bitmap_init(&kernel_vaddr.vaddr_bitmap);
+  put_str("     mem_pool_init done \n");
+}
+
+/* 内存管理部分初始化入口 */
+void mem_init(){
+  put_str("mem_init start\n");
+  uint32_t mem_bytes_total = (*(uint32_t*)(0xb00));     //这里是咱们之前loader.S中存放物理总内存的地址
+  mem_pool_init(mem_bytes_total);
+  put_str("mem_init done\n");
+}
+
+
+```
+这里的初始化入口当然也是由咱们之前编写的kernel/init.c来进行调用啦，所以这里我们来看看执行情况
+![](http://imgsrc.baidu.com/super/pic/item/a044ad345982b2b75075a60174adcbef77099b09.jpg)
+可以发现这里我们的内核物理内存池起始地址也确实是在咱们的页目录以及内核页表之后，也就是0x200000那儿，十分成功！！！
+## 0x04 分配页内存
+上一节咱们已经成功构建了位图，内存池且将他们初始化了，这里我们继续进行下一步工作，得使用他们了，这里我先给出memory.h改进的代码
+```
+#ifndef __KERNEL_MEMORY_H
+#define __KERNEL_MEMORY_H
+#include "stdint.h"
+#include "bitmap.h"
+
+/* 内存池标记，用于判断用哪个内存池，这里采用enum枚举 */
+enum pool_flags{
+  PF_KERNEL = 1,    //内核内存池
+  PF_USER = 2       //用户内存池
+};
+
+#define PG_P_1 1    //页表项或页目录项存在属性位
+#define PG_P_0 0    //页表项或页目录项存在属性位
+#define PG_RW_R 0   //R/W属性位值，读/执行
+#define PG_RW_R 2   //R/W属性位值，读/写/执行
+#define PG_US_S 0   //U/S属性位值，系统级
+#define PG_US_U 4   //U/S属性位值，用户级
+/* 虚拟地址池，用于虚拟地址管理 */
+struct virtual_addr {
+  struct bitmap vaddr_bitmap;
+  uint32_t vaddr_start;
+};
+
+extern struct pool kernel_pool, user_pool;
+void mem_init(void);
+void* malloc_page(enum pool_flags pf, uint32_t pg_cnt);
+void* get_kernel_pages(uint32_t pg_cnt);
+#endif
+
+```
+
+可以看到我们是添加了一些定义和两个函数，这两个函数的具体实现我在这里简单说下，具体实现可以把源码下下来看看，里面注释十分详细，首先我们分配页表，我们需要做的事有三件：
+1. 首先在虚拟内存池中申请虚拟地址，然后在虚拟内存池的位图中将他们置为1
+2. 然后我们再物理内存池中申请一定量的物理页框，同样的也要在对应的物理内存池的位图中将其置为1
+3. 然后我们再通过之前内存机制那篇学习到的知识访问到对应页目录项页目录表，然后修改其中的值以此来实现咱们的虚拟地址与物理地址的映射，这里我给出映射部分的代码，这里十分重要，请务必理解
+
+```
+/* 页表中添加虚拟地址_vaddr与物理地址_page_phyaddr的映射 */
+static void page_table_add(void* _vaddr, void* _page_phyaddr){
+  uint32_t vaddr = (uint32_t)_vaddr,page_phyaddr = (uint32_t)_page_phyaddr;
+  uint32_t* pde = pde_ptr(vaddr);
+  uint32_t* pte = pte_ptr(vaddr);
+
+/******************************** 注意 **********************************
+ * 执行*pte会访问到空的pde，所以确保pde创建完成后才能执行*pte,
+ * 否则会引发page_fault。因此在*pde为0的时候，*pte只能出现在下面else语句块中的*pde后面
+ * **********************************************************************/
+  /* 先在页目录内判断目录项的P位，若为1则表示该表已经存在 */
+  if(*pde & 0x00000001){
+    //页目录项和页表项的第0位为p，这里是判断页目录项是否存在
+    ASSERT(!(*pte & 0x00000001));   //这里若是说以前有已经装载的物理页框，则会报错
+    if(!(*pte & 0x00000001)){
+      *pte = (page_phyaddr | PG_US_U | PG_RW_W | PG_P_1);
+    }else{
+      PANIC("pte repeat");      //ASSERT的内置函数
+      *pte = (page_phyaddr | PG_US_U | PG_RW_W | PG_P_1);
+    }
+  }else{
+    //页目录项不存在，所以需要先创建页目录再创建页表项
+    /* 页表中的页框一律从内核空间分配 */
+    uint32_t pde_phyaddr = (uint32_t)palloc(&kernel_pool);
+    *pde = (pde_phyaddr | PG_US_U | PG_RW_W | PG_P_1);
+    /* 分配到的物理页地址pde_phyaddr对应的物理内存清0,
+     * 避免里面的旧数据变成页表项，从而让页表混乱
+     * 访问到pde对应的物理地址，用pte取高20位即可
+     * 因为pte基于该pde对应的物理地址内再寻址，
+     * 把低12位置0便是该pde对应的物理页的起始 */
+    memset((void*)((int)pte & 0xfffff000), 0, PG_SIZE);
+    ASSERT(!(*pte & 0x00000001));
+    *pte = (page_phyaddr | PG_US_U | PG_RW_W | PG_P_1);
+  }
+}
+```
+
+这里的pte是对应的页表项地址，pde是对应的页目录项地址，我们平时说的映射其实也就是操作这个页表而已，其中若页目录项或页表项为空的时候我们必须要先创建页目录然后再创建页表来实现映射。
+然后我们再到main.c里面实现
+```
+#include "print.h"
+#include "init.h"
+#include "debug.h"
+#include "string.h"
+#include "memory.h"
+
+int main(void){
+  put_str("I am Kernel\n");
+  init_all();
+  void* addr = get_kernel_pages(3);
+  put_str("\n get kernel pages start vaddr is:");
+  put_int((uint32_t)addr);
+  put_str("\n");
+  while(1);
+  return 0;
+}
+
+```
+
+这里我们是在main函数里面申请了三个虚拟页,然后我们打印一下我们的申请的虚拟页首地址，我们进入调试界面查看是否有对应的映射
+![](http://imgsrc.baidu.com/super/pic/item/a50f4bfbfbedab6402e7d605b236afc378311e59.jpg)
+大家可以看到这里刚好就多了三个页大小的映射，这证明咱们已经正确的进行了映射，简直不要太激动，这里我们就已经实现了初步的内存管理了！！！
+
+
+## 0x05 总结
+今天基础知识很少，更多的是咱们实现代码，代码十分多但是很值得仔细看，如果大家没耐心可能看不下去，但是一旦看进去了就会荣会贯通，整体流程会理解的更加顺畅，这里的页表变换我建议大家同之前实现内存分页机制那章协同观看。
+
+

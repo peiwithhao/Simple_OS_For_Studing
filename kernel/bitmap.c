@@ -7,7 +7,7 @@
 
 /* 将位图初始化 */
 void bitmap_init(struct bitmap* btmp){
-  memset(btmp, 0, btmp->btmp_bytes_len);
+  memset(btmp->bits, 0, btmp->btmp_bytes_len);
 }
 
 /* 判断bit_idx位是否为1,若为1,则返回true，否则返回false */
@@ -25,7 +25,6 @@ int bitmap_scan(struct bitmap* btmp, uint32_t cnt){
     /* 1表示已经分配，若为0xff则说明该字节内已经无空闲位，到下一字节再找 */
     idx_byte++;
   }
-
   ASSERT(idx_byte < btmp->btmp_bytes_len);
   if(idx_byte == btmp->btmp_bytes_len){     //这里若字节等于长度的话，那说明没有了剩余空间了
     return -1; 
