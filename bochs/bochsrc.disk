@@ -1,6 +1,6 @@
 #第一步，首先设置 Bochs 在运行过程中能够使用的内存，本例为 32MB
 #关键字为 me gs 
-megs :512
+megs :32
 #第二步，设置对应真实机器的 BIOS VGA BIOS
 #对应两个关键字为 romimage vgaromimage
 romimage: file=/home/dawn/repos/OS_learning/bochs/share/bochs/BIOS-bochs-latest
