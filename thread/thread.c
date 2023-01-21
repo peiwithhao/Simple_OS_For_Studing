@@ -19,7 +19,7 @@ extern void switch_to(struct task_struct* cur, struct task_struct* next);
 /* 获取当前线程PCB指针 */
 struct task_struct* running_thread(){
   uint32_t esp;
-  asm("mov %%esp, %0" : "g="(esp));
+  asm("mov %%esp, %0" : "=g"(esp));
   /* 取esp整数部分，也就是PCB起始地址 */
   return (struct task_struct*)(esp & 0xfffff000);       //这里因为我们PCB肯定是放在一个页最低端，所以这里取栈所在页面起始地址就行
 }
@@ -82,7 +82,7 @@ struct task_struct* thread_start(char* name, int prio, thread_func function, voi
 
   
   /* 确保之前不在队列中 */
-  ASSERT(!elem_find(&thread_all_list, &thread->general_tag));
+  ASSERT(!elem_find(&thread_ready_list, &thread->general_tag));
   /* 加入就绪线程队列 */
   list_append(&thread_ready_list, &thread->general_tag);
 

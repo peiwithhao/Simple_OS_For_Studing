@@ -31,7 +31,8 @@ $(BUILD_DIR)/bitmap.o : kernel/bitmap.c kernel/bitmap.h \
 	$(CC) $(CFLAGS) $< -o $@
 
 $(BUILD_DIR)/interrupt.o : kernel/interrupt.c kernel/interrupt.h \
-	lib/stdint.h kernel/global.h lib/kernel/io.h lib/kernel/print.h
+	lib/stdint.h kernel/global.h lib/kernel/io.h lib/kernel/print.h \
+	device/timer.h 
 	$(CC) $(CFLAGS) $< -o $@
 
 $(BUILD_DIR)/timer.o : device/timer.c device/timer.h lib/stdint.h \

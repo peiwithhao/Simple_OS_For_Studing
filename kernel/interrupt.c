@@ -2,6 +2,7 @@
 #include "stdint.h"
 #include "global.h"
 #include "io.h"
+#include "print.h"
 
 #define IDT_DESC_CNT 0x21           //目前总支持的中断数
 #define PIC_M_CTRL 0x20             //主片控制端口
@@ -72,35 +73,18 @@ static void general_intr_handler(uint64_t vec_nr){
   /* IRQ7和IRQ15会产生伪中断，IRQ15是从片上最后一个引脚，保留项，这俩都不需要处理 */
   if(vec_nr == 0x27 || vec_nr == 0x2f){
     return;
-  }
-  /* 将光标置为0,从屏幕左上角清出一片打印异常信息的区域方便阅读 */
-  set_cursor(0);    //这里是print.S中的设置光标函数，光标值范围是0～1999
-  int cursor_pos = 0;
-  while(cursor_pos < 320){
-    put_char(' ');
-    cursor_pos++;
-  }
-  set_cursor(0);    //重置光标值
-  put_str("!!!!!!!!  exception message begin  !!!!!!!!");
-  set_cursor(8);    //从第二行第8个字符开始打印
-  put_str(intr_name[vec_nr]);
-  if(vec_nr == 14){         //若为PageFault,将缺失的地址打印出来并悬停
-    int page_fault_vaddr = 0;
-    asm("movl %%cr2, %0" : "=r"(page_fault_vaddr));     //cr2存放造成PageFault的地址
-    put_str("\npage fault addr is ");
-    put_int(page_fault_vaddr);
-  }
-  put_str("\n!!!!!!!!   exception message end !!!!!!!");
-  /* 能进入中断处理程序就表示已经在关中断情况下了，不会出现调度进程的情况，因此下面的死循环不会被中断 */
-  while(1);
+  } 
+  put_str("int vector : 0x");       //这里我们仅实现一个打印中断数的功能
+  put_int(vec_nr);
+  put_char('\n');
 }
 
 /* 完成一般中断处理函数注册以及异常名称注册 */
 static void exception_init(void){
   int i;
   for(i  = 0; i < IDT_DESC_CNT; i++){
-/* idt_table数组中的函数是在进入中断后根据中断向量号调用的
- * */
+    /* idt_table数组中的函数是在进入中断后根据中断向量号调用的
+     * */
     idt_table[i] = general_intr_handler;    //这里初始化为最初的普遍处理函数
     intr_name[i] = "unknown";               //先统一赋值为unknown
   }
@@ -144,7 +128,7 @@ enum intr_status intr_enable(){
 enum intr_status intr_disable(){
   enum intr_status old_status;
   if(INTR_ON == intr_get_status()){
-    old_status = INTR_OFF;
+    old_status = INTR_ON;
     asm volatile("cli" : : : "memory");
     return old_status;
   }else{
@@ -162,7 +146,7 @@ enum intr_status intr_set_status(enum intr_status status){
 enum intr_status intr_get_status(){
   uint32_t eflags = 0;
   GET_EFLAGS(eflags);
-  return (EFLAGS_IF & eflags) ? INTR_ON : INTR_OFF ; 
+  return (EFLAGS_IF & eflags) ? INTR_ON : INTR_OFF ;
 }
 
 /* 在中断处理程序数组第vector_no个元素中注册安装中断处理程序function */
@@ -183,7 +167,7 @@ void idt_init(){
 
   /* 加载idt */
   uint64_t idt_operand = (sizeof(idt)-1) | ((uint64_t)((uint32_t)idt << 16));   //这里(sizeof(idt)-1)是表示段界限，占16位，然后我们的idt地址左移16位表示高32位，表示idt首地址
-  asm volatile("lidt %0" : : "m" (idt_operand)); 
+  asm volatile("lidt %0" : : "m" (idt_operand));
   put_str("idt_init done\n");
 }
 
