@@ -13,6 +13,7 @@ int main(void){
   thread_start("k_thread_a", 31, k_thread_a, "argA");
   thread_start("k_thread_b", 8, k_thread_b, "argB");
   intr_enable();
+  put_str("intr_enable done\n");
   while(1);
 
   return 0;
