@@ -730,4 +730,50 @@ void thread_init(void){
 ```
 
 
-我们万事具备，现在就去main函数中尝试一下
+我们万事具备，现在就去main函数中尝试一下:
+```
+#include "print.h"
+#include "memory.h"
+#include "init.h"
+#include "thread.h"
+#include "interrupt.h"
+
+void k_thread_a(void*);     //自定义线程函数
+void k_thread_b(void*); 
+
+int main(void){
+  put_str("I am Kernel\n");
+  init_all();
+  thread_start("k_thread_a", 31, k_thread_a, "argA");
+  thread_start("k_thread_b", 8, k_thread_b, "argB");
+  intr_enable();
+  while(1);
+
+  return 0;
+}
+
+/* 在线程中运行的函数 */
+void k_thread_a(void* arg){
+  /* 这里传递通用参数，这里被调用函数自己需要什么类型的就自己转换 */
+  char* para = arg;
+  while(1){
+    put_str(para);
+  }
+}
+void k_thread_b(void* arg){
+  /* 这里传递通用参数，这里被调用函数自己需要什么类型的就自己转换 */
+  char* para = arg;
+  while(1){
+    put_str(para);
+  }
+}
+
+```
+
+
+这里遇到个问题，这几天实在没法子，是这样的，在之前我们实现中断的时候，可以看到我们的8253计数器是成功发出中断的，但是这两天我重新编译发现他突然无法发出时钟中断了，且这里绝对不是代码的问题，我将之前中断部分的代码重新编译一遍发现就无法发起时钟中断，但是我使用以前的编译结果就是正确的，这两天排查的很是烦人，且使用不同版本的gcc也没进展，换环境也无法成功，这里首先给出运行成功的正确结果，我估计得过几天才再来解决这个问题，这两天搞得心力憔悴
+![](http://imgsrc.baidu.com/super/pic/item/d1a20cf431adcbef32e0a1c3e9af2edda2cc9f1b.jpg)
+
+
+## 0x04 总结
+本次撇开最后结果的问题，整体代码弄懂了是十分值得的，你会从中知道调度器是如何运作，线程切换是如何工作的，如何识别线程等十分有趣的知识，但是就因为最近几天机子上的编译问题导致计数器始终不工作，搞得我过年都过不安逸，并且他是最近几天出的问题，年前实现中断的时候根本没这种困扰。

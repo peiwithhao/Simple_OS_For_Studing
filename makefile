@@ -25,7 +25,7 @@ $(BUILD_DIR)/init.o : kernel/init.c kernel/init.h lib/kernel/print.h \
 	thread/thread.h
 	$(CC) $(CFLAGS) $< -o $@
 
-$(BUILD_DIR)/bitmap.o : kernel/bitmap.c kernel/bitmap.h \
+$(BUILD_DIR)/bitmap.o : lib/kernel/bitmap.c lib/kernel/bitmap.h \
 	lib/stdint.h kernel/global.h lib/kernel/print.h lib/string.h \
 	kernel/debug.h kernel/interrupt.h
 	$(CC) $(CFLAGS) $< -o $@
@@ -41,7 +41,7 @@ $(BUILD_DIR)/timer.o : device/timer.c device/timer.h lib/stdint.h \
 	$(CC) $(CFLAGS) $< -o $@
 
 $(BUILD_DIR)/memory.o : kernel/memory.c kernel/memory.h \
-	lib/stdint.h lib/kernel/print.h kernel/bitmap.h kernel/global.h \
+	lib/stdint.h lib/kernel/print.h lib/kernel/bitmap.h kernel/global.h \
 	kernel/debug.h lib/string.h
 	$(CC) $(CFLAGS) $< -o $@
 

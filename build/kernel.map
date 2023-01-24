@@ -162,22 +162,22 @@ LOAD build/switch.o
  *(.text.hot .text.hot.*)
  *(SORT_BY_NAME(.text.sorted.*))
  *(.text .stub .text.* .gnu.linkonce.t.*)
- .text          0x00000000c0001500       0x9f build/main.o
+ .text          0x00000000c0001500       0xa3 build/main.o
                 0x00000000c0001500                main
-                0x00000000c000155f                k_thread_a
-                0x00000000c000157f                k_thread_b
- .text          0x00000000c000159f       0x31 build/init.o
-                0x00000000c000159f                init_all
- .text          0x00000000c00015d0      0x432 build/interrupt.o
-                0x00000000c00018bb                intr_enable
-                0x00000000c00018e8                intr_disable
-                0x00000000c0001915                intr_set_status
-                0x00000000c0001937                intr_get_status
-                0x00000000c0001958                register_handler
-                0x00000000c00019aa                idt_init
- .text          0x00000000c0001a02      0x189 build/timer.o
-                0x00000000c0001b34                timer_init
- *fill*         0x00000000c0001b8b        0x5 
+                0x00000000c0001563                k_thread_a
+                0x00000000c0001583                k_thread_b
+ .text          0x00000000c00015a3       0x31 build/init.o
+                0x00000000c00015a3                init_all
+ .text          0x00000000c00015d4      0x432 build/interrupt.o
+                0x00000000c00018bf                intr_enable
+                0x00000000c00018ec                intr_disable
+                0x00000000c0001919                intr_set_status
+                0x00000000c000193b                intr_get_status
+                0x00000000c000195c                register_handler
+                0x00000000c00019ae                idt_init
+ .text          0x00000000c0001a06      0x189 build/timer.o
+                0x00000000c0001b38                timer_init
+ *fill*         0x00000000c0001b8f        0x1 
  .text          0x00000000c0001b90      0x39d build/kernel.o
                 0x00000000c0001b90                intr_exit
  *fill*         0x00000000c0001f2d        0x3 
@@ -241,7 +241,7 @@ LOAD build/switch.o
                 0x00000000c0004000                . = ALIGN (CONSTANT (MAXPAGESIZE))
                 0x00000000c0004000                . = SEGMENT_START ("rodata-segment", (ALIGN (CONSTANT (MAXPAGESIZE)) + (. & (CONSTANT (MAXPAGESIZE) - 0x1))))
 
-.rodata         0x00000000c0004000      0x7b9
+.rodata         0x00000000c0004000      0x7bd
  *(.rodata .rodata.* .gnu.linkonce.r.*)
  .rodata        0x00000000c0004000       0x2d build/main.o
  .rodata        0x00000000c000402d        0xa build/init.o
@@ -251,12 +251,12 @@ LOAD build/switch.o
  .rodata        0x00000000c00042c0       0x7f build/timer.o
  .rodata        0x00000000c000433f       0x31 build/debug.o
  .rodata        0x00000000c0004370       0xac build/string.o
- .rodata        0x00000000c000441c       0x67 build/bitmap.o
- *fill*         0x00000000c0004483        0x1 
- .rodata        0x00000000c0004484      0x144 build/memory.o
- .rodata        0x00000000c00045c8      0x1b1 build/thread.o
- *fill*         0x00000000c0004779        0x3 
- .rodata        0x00000000c000477c       0x3d build/list.o
+ .rodata        0x00000000c000441c       0x6b build/bitmap.o
+ *fill*         0x00000000c0004487        0x1 
+ .rodata        0x00000000c0004488      0x144 build/memory.o
+ .rodata        0x00000000c00045cc      0x1b1 build/thread.o
+ *fill*         0x00000000c000477d        0x3 
+ .rodata        0x00000000c0004780       0x3d build/list.o
 
 .rodata1
  *(.rodata1)
@@ -265,26 +265,26 @@ LOAD build/switch.o
  *(.eh_frame_hdr)
  *(.eh_frame_entry .eh_frame_entry.*)
 
-.eh_frame       0x00000000c00047bc      0x7ec
+.eh_frame       0x00000000c00047c0      0x7ec
  *(.eh_frame)
- .eh_frame      0x00000000c00047bc       0x74 build/main.o
- .eh_frame      0x00000000c0004830       0x20 build/init.o
+ .eh_frame      0x00000000c00047c0       0x74 build/main.o
+ .eh_frame      0x00000000c0004834       0x20 build/init.o
                                          0x38 (size before relaxing)
- .eh_frame      0x00000000c0004850      0x188 build/interrupt.o
+ .eh_frame      0x00000000c0004854      0x188 build/interrupt.o
                                         0x1a0 (size before relaxing)
- .eh_frame      0x00000000c00049d8       0x8c build/timer.o
+ .eh_frame      0x00000000c00049dc       0x8c build/timer.o
                                          0xa4 (size before relaxing)
- .eh_frame      0x00000000c0004a64       0x1c build/debug.o
+ .eh_frame      0x00000000c0004a68       0x1c build/debug.o
                                          0x34 (size before relaxing)
- .eh_frame      0x00000000c0004a80      0x140 build/string.o
+ .eh_frame      0x00000000c0004a84      0x140 build/string.o
                                         0x158 (size before relaxing)
- .eh_frame      0x00000000c0004bc0       0x88 build/bitmap.o
+ .eh_frame      0x00000000c0004bc4       0x88 build/bitmap.o
                                          0xa0 (size before relaxing)
- .eh_frame      0x00000000c0004c48      0x120 build/memory.o
+ .eh_frame      0x00000000c0004c4c      0x120 build/memory.o
                                         0x138 (size before relaxing)
- .eh_frame      0x00000000c0004d68      0x100 build/thread.o
+ .eh_frame      0x00000000c0004d6c      0x100 build/thread.o
                                         0x118 (size before relaxing)
- .eh_frame      0x00000000c0004e68      0x140 build/list.o
+ .eh_frame      0x00000000c0004e6c      0x140 build/list.o
                                         0x158 (size before relaxing)
  *(.eh_frame.*)
 
