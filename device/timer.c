@@ -32,14 +32,25 @@ static void frequency_set(uint8_t counter_port, uint8_t counter_no, uint8_t rwl,
 static void intr_timer_handler(void){
   put_str("i am in intr_timer\n");
   struct task_struct* cur_thread = running_thread();
+  put_str("the cur_thread addr is :0x");
+  put_int(cur_thread);
+  put_str("\n");
   ASSERT(cur_thread->stack_magic == 0xdeadbeef);    //检查栈是否溢出
   cur_thread->elapsed_ticks++;          //记录此线程占用的CPU时间
+  put_int(cur_thread->ticks);
+  put_str("\n");
+  put_int(cur_thread->elapsed_ticks);
   ticks++;          //从内核第一次处理时间中断后开始至今的滴答数，内核态和用户态总共的滴答数
-  if(cur_thread->ticks == 0){   //查看时间片是否用完
+  /*if(cur_thread->ticks == 0){   //查看时间片是否用完
     schedule();
   }else{
+    put_str("\n");
+    put_int(cur_thread->ticks);
+    put_str("\n");
     cur_thread->ticks--;
+    
   }
+  */
 }
 
 /* 初始化PIT8253 */

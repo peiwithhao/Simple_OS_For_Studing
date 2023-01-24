@@ -76,20 +76,23 @@ $(BUILD_DIR)/switch.o : thread/switch.S
 $(BUILD_DIR)/kernel.bin : $(OBJS)
 	$(LD) $(LDFLAGS) $^ -o $@ 	
 
-.PHONY : mk_dir hd clean all    			#定义伪目标
+.PHONY : mk_dir sp hd clean all    			#定义伪目标
 
 mk_dir:
 	if [ ! -d $(BUILD_DIR) ];then mkdir $(BUILD_DIR);fi 	#若没有这个目录，则创建
 
+sp: 
+	strip --remove-section=.note.gnu,property $(BUILD_DIR)/kernel.bin
+
 hd:
 	dd if=$(BUILD_DIR)/kernel.bin \
 		of=/home/dawn/repos/OS_learning/bochs/hd60M.img \
-		bs=512 count=200 seek=9 conv=notrunc
+		bs=512 count=200 seek=9 conv=notrunc \
 
 clean:
 	cd $(BUILD_DIR) && rm -f ./*
 
 build : $(BUILD_DIR)/kernel.bin
 
-all : mk_dir build hd
+all : mk_dir build sp hd
 

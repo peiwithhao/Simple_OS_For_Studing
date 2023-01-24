@@ -110,7 +110,7 @@ static void make_main_thread(void){
 /* 实现任务调度 */
 void schedule(){
   ASSERT(intr_get_status() == INTR_OFF);
-
+  put_str("i am in schedule\n");
   struct task_struct* cur = running_thread();
   if(cur->status == TASK_RUNNING){
     //这里若是从运行态调度，则是其时间片到了的正常切换，因此将其改变为就绪态
