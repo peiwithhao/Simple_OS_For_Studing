@@ -13,7 +13,6 @@ void panic_spin(char* filename, int line, const char* func, const char* conditio
   #define ASSERT(CONDITION) ((void)0)   //这里若定义了NDEBUG，则ASSERT宏会等于空值，也就是取消这个宏
 #else                                   //否则就说明是调试模式，所以下面才是真正的定义断言
 #define ASSERT(CONDITION) if(CONDITION){}else{    \
-  /* 符号#让编译器将宏的参数转化为字符串面量 */ \   
   PANIC(#CONDITION); \                  
 }
 
