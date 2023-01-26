@@ -83,13 +83,12 @@ static void general_intr_handler(uint64_t vec_nr){
   }
   set_cursor(0);    //重置光标值
   put_str("!!!!!!!!  exception message begin  !!!!!!!!");
-  set_cursor(8);    //从第二行第8个字符开始打印
+  set_cursor(88);    //从第二行第8个字符开始打印
   put_str(intr_name[vec_nr]);
   if(vec_nr == 14){         //若为PageFault,将缺失的地址打印出来并悬停
     int page_fault_vaddr = 0;
     asm("movl %%cr2, %0" : "=r"(page_fault_vaddr));     //cr2存放造成PageFault的地址
     put_str("\npage fault addr is ");
-    put_int(page_fault_vaddr);
   }
   put_str("\n!!!!!!!!   exception message end !!!!!!!");
   /* 能进入中断处理程序就表示已经在关中断情况下了，不会出现调度进程的情况，因此下面的死循环不会被中断 */

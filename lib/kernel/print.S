@@ -84,7 +84,7 @@ put_char:
   inc bx
   mov byte [gs:bx], 0x7     ;表示黑屏白字
   shr bx, 1         ;恢复光标值
-  jmp set_cursor 
+  jmp .set_cursor 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -96,7 +96,7 @@ put_char:
   shr bx, 1                 ;下一个光标值
   inc bx
   cmp bx, 2000              ;若小于2000,则表示没写道显存最后，因为80×25=2000
-  jl set_cursor            ;若大于2000,则换行处理,也就是进行下一行的换行处理
+  jl .set_cursor            ;若大于2000,则换行处理,也就是进行下一行的换行处理
 
 .is_line_feed:
 .is_carriage_return:
@@ -112,7 +112,7 @@ put_char:
   add bx, 80        ;由于换了一行，所以这里加上80
   cmp bx, 2000
 .is_line_feed_end:
-  jl set_cursor 
+  jl .set_cursor 
 
 ;将1～24行搬运到0～23,然后24行填充空格
 .roll_screen:       ;开始滚屏
@@ -131,8 +131,7 @@ put_char:
   loop .cls
   mov bx, 1920      ;移动光标至最后一行开头
 
-global set_cursor
-set_cursor:
+.set_cursor:
 ;将光标设为bx值，这里和之前获取类似
 ;;;;;;;; 先设置高8位 ;;;;;;;;
   mov dx, 0x03d4
@@ -215,3 +214,27 @@ put_int:
   jl .put_each_num
   popad
   ret
+
+global set_cursor
+set_cursor:
+  pushad
+  mov bx, [esp+36]
+;;;;;;;; 先设置高8位 ;;;;;;;;
+  mov dx, 0x03d4
+  mov al, 0x0e
+  out dx, al
+  mov dx, 0x03d5
+  mov al, bh
+  out dx, al
+
+;;;;;;;; 再设置低8位 ;;;;;;;;
+  mov dx, 0x03d4
+  mov al, 0x0f
+  out dx, al
+  mov dx, 0x03d5
+  mov al, bl
+  out dx, al
+  popad
+  ret
+
+

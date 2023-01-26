@@ -60,9 +60,6 @@ void init_thread(struct task_struct* pthread, char* name, int prio){
   /* self_kstack是线程自己在内核态下使用的栈顶地址 */
   pthread->self_kstack = (uint32_t*)((uint32_t)pthread + PG_SIZE);
 
-  put_str("the stack is ");
-  put_int(pthread->self_kstack);
-  put_str("\n");
   pthread->priority = prio;
   pthread->ticks = prio;
   pthread->elapsed_ticks = 0;
@@ -76,9 +73,6 @@ struct task_struct* thread_start(char* name, int prio, thread_func function, voi
   struct task_struct* thread = get_kernel_pages(1);
   init_thread(thread, name, prio);
   thread_create(thread, function, func_arg);
-  put_str("the thread is");
-  put_int(thread);
-  put_str("\n");
 
   
   /* 确保之前不在队列中 */
@@ -110,7 +104,6 @@ static void make_main_thread(void){
 /* 实现任务调度 */
 void schedule(){
   ASSERT(intr_get_status() == INTR_OFF);
-  put_str("i am in schedule\n");
   struct task_struct* cur = running_thread();
   if(cur->status == TASK_RUNNING){
     //这里若是从运行态调度，则是其时间片到了的正常切换，因此将其改变为就绪态
@@ -129,7 +122,6 @@ void schedule(){
   thread_tag = list_pop(&thread_ready_list);
   struct task_struct* next = elem2entry(struct task_struct, general_tag, thread_tag);
   next->status = TASK_RUNNING;
-  put_str("trying switch\n");
   switch_to(cur, next);
 }
 
