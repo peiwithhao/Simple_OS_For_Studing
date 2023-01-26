@@ -10,7 +10,6 @@ int main(void){
   void* addr = get_kernel_pages(3);
   put_str("\n get kernel pages start vaddr is:");
   put_int((uint32_t)addr);
-  put_str("\n");
   while(1); 
   return 0;
 }
