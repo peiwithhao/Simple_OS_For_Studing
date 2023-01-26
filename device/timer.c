@@ -18,9 +18,9 @@ static void frequency_set(uint8_t counter_port, uint8_t counter_no, uint8_t rwl,
   /* 往控制字寄存器端口0x43写入控制字 */
   outb(PIT_CONTROL_PORT, (uint8_t)(counter_no << 6 | rwl << 4 | counter_mode << 1)); //计数器0,rwl高低都写，方式2,二进制表示
   /* 先写入counter_value的低8位 */
-  outb(CONTRER0_PORT, (uint8_t)counter_value);
+  outb(counter_port, (uint8_t)counter_value);
   /* 再写入counter_value的高8位 */
-  outb(COUNTER_MODE, (uint8_t)counter_mode >> 8);
+  outb(counter_port, (uint8_t)counter_value >> 8);
 }
 
 /* 初始化PIT8253 */
