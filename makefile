@@ -76,13 +76,10 @@ $(BUILD_DIR)/switch.o : thread/switch.S
 $(BUILD_DIR)/kernel.bin : $(OBJS)
 	$(LD) $(LDFLAGS) $^ -o $@ 	
 
-.PHONY : mk_dir sp hd clean all    			#定义伪目标
+.PHONY : mk_dir hd clean all    			#定义伪目标
 
 mk_dir:
 	if [ ! -d $(BUILD_DIR) ];then mkdir $(BUILD_DIR);fi 	#若没有这个目录，则创建
-
-sp: 
-	strip --remove-section=.note.gnu,property $(BUILD_DIR)/kernel.bin
 
 hd:
 	dd if=$(BUILD_DIR)/kernel.bin \
@@ -94,5 +91,5 @@ clean:
 
 build : $(BUILD_DIR)/kernel.bin
 
-all : mk_dir build sp hd
+all : mk_dir build hd
 

@@ -777,3 +777,32 @@ void k_thread_b(void* arg){
 
 ## 0x04 总结
 本次撇开最后结果的问题，整体代码弄懂了是十分值得的，你会从中知道调度器是如何运作，线程切换是如何工作的，如何识别线程等十分有趣的知识，但是就因为最近几天机子上的编译问题导致计数器始终不工作，搞得我过年都过不安逸，并且他是最近几天出的问题，年前实现中断的时候根本没这种困扰。
+
+## 0x05 问题解决
+排查到最后发现是timer.c代码出了问题，其中PIT的初始过程给写错了，搞到最后各种编译各种改版本发现最终是代码问题哈哈,修改的部分如下：
+```
+static void frequency_set(uint8_t counter_port, uint8_t counter_no, uint8_t rwl, uint8_t counter_mode, uint16_t counter_value){
+  /* 往控制字寄存器端口0x43写入控制字 */
+  outb(PIT_CONTROL_PORT, (uint8_t)(counter_no << 6 | rwl << 4 | counter_mode << 1)); //计数器0,rwl高低都写，方式2,二进制表示
+  /* 先写入counter_value的低8位 */
+  outb(counter_port, (uint8_t)counter_value);
+  /* 再写入counter_value的高8位 */
+  outb(counter_port, (uint8_t)counter_value >> 8);
+}
+
+```
+
+然后这里给出我自己的运行结果
+![](http://imgsrc.baidu.com/super/pic/item/c8177f3e6709c93d05773f31da3df8dcd000546a.jpg)
+
+这里我们看到了最上面是我们修改了的普通中断处理函数的异常报错，也就是"#GP General Protection Exception".这正是我们之前定义的中断名，这里我们可以去看看为什么爆出这个异常，所以我们进入bochs调试看看，我们可以使用show int来打印程序中所出现的中断，但是由于我们目前没有实现软中断，所以我们只需要在bochs调试页面使用show extint指令，这里我们可以首先使用nm指令查看thread_start的地址使得我们尽量距离GP异常近一点。
+
+![](http://imgsrc.baidu.com/super/pic/item/c9fcc3cec3fdfc031050d37e913f8794a5c226cf.jpg)
+
+然后我们就先在这儿打断点然后使用show extint定位GP异常的地方就好了,下面就是我定位到的发生异常的指令
+![](http://imgsrc.baidu.com/super/pic/item/a8ec8a13632762d015199479e5ec08fa503dc6d5.jpg)
+从这里我们可以看出，他是将cl移到gs的选择子当中，也就是咱们的视频段选择子，也就是咱们的显存段，但是我们可以回忆一下我们的显存段的物理地址范围为0xb8000~0xbffff，总共大小为0x7fff,而我们这里的ebx也就是偏移他是0x9f9e明显超出了这个范围，所以他明显越界了所以爆出了GP异常
+这里我们使用x来查看内存情况，发现确实提示越界
+
+![](http://imgsrc.baidu.com/super/pic/item/a1ec08fa513d2697b1c9389b10fbb2fb4216d8da.jpg)
+至于这里为什么产生这样的错误，我们在之后同步环节进行讲解。
