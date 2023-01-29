@@ -594,7 +594,212 @@ static void intr_keyboard_handler(void){
 
 ```
 
-这里逻辑也是挺清楚的，这里注意一点就是静态变量在编译的时候会赋予初值0,所以一开始默认的控制状态码会是false，下面看看我们的运行成果
+这里逻辑也是挺清楚的，然后我们开始编译链接，这里注意我们通过以下指令来将标准输出重定向到/dev/null，然后通过make hd来写入硬盘
+```
+make build 1>/dev/null
+make hd
+```
+
+
+这里注意一点就是静态变量在编译的时候会赋予初值0,所以一开始默认的控制状态码会是false，下面看看我们的运行成果
 ![](http://imgsrc.baidu.com/super/pic/item/03087bf40ad162d94f3574da54dfa9ec8b13cd19.jpg)
 我都能在上面打颜文字了应该不必说了吧，大成功!
 
+## 0x05 环形输入缓冲区
+到目前为止，虽然咱们顺利接受了键盘按键，但其实除了输出这些字符并没有出现什么特别的功能，而我们实现键盘输入很大的一部分就是可以实现咱们的shell功能，这样咱们就可以键入指令然后实现咱们的需求了。
+缓冲区是多个线程共用的共享内存，线程并行访问的时候它难免会出问题，所以我们需要解决这个对于缓冲区的访问操作产生的问题。这里我稍微介绍一下我们即将要设计的环形缓冲区：
+从他的名字可以知道这个就是一个环形结构，事实上也确实如此，他很像咱们数据结构中学到的循环队列，如下图：
+![](http://imgsrc.baidu.com/super/pic/item/503d269759ee3d6dea20820d06166d224e4ade16.jpg)
+这里我们定义两个指针来指向其中的头和尾，但注意我们这里的环形是指逻辑上的环形，在物理内存上我们仍然是线性的，不过我们用以下方式来使得其从逻辑上来看是环形队列，那就是头指针用来写数据，尾指针用来读数据，这里跟我学的队列是相反的，我之前学的是头指针加1是用来读数据，而尾指针是用来写的，这里刚好反了，不过逻辑仍然一致，这里当我们指针位置加1导致越过了缓冲区范围的时候会进行取余来重新指向缓冲区的开头，这样就形成了环形的错觉。
+接下来我们将唤醒缓冲区定义在device/ioqueue.h 和 device/ioqueue.c中：
+首先是头文件
+```
+#ifndef __DEVICE_IOQUEUE_H
+#define __DEVICE_IOQUEUE_H
+#include "stdint.h"
+#include "thread.h"
+#include "sync.h"
+
+#define bufsize 64
+
+/* 环形队列 */
+struct ioqueue{
+  //生产者消费者
+  struct lock lock;     //本缓冲区的锁
+  /* 生产者，缓冲区不满的时候就继续往里面放数据
+   * 否则就睡眠，此项记录哪个生产者在此缓冲区上睡眠 */
+  struct task_struct* producer;
+
+  /* 消费者，缓冲区不空就从里面拿数据，
+   * 否则就睡眠，此项记录哪个消费者在此缓冲区上睡眠 */
+  struct task_struct* consumer;
+  char buf[bufsize];        //缓冲区大小
+  int32_t head;             //头指针，写
+  int32_t tail;             //尾指针，读
+};
+#endif
+```
+
+接着我们来正式实现ioqueue.c,如下：
+```
+#include "ioqueue.h"
+#include "interrupt.h"
+#include "global.h"
+#include "debug.h"
+
+/* 初始化io队列ioq */
+void ioqueue_init(struct ioqueue* ioq){
+  lock_init(&ioq->lock);    //初始化ioq的锁
+  ioq->producer = ioq->consumer = NULL;     //生产者消费者置空
+  ioq->head = ioq->tail = 0;    //队列的首尾地址指向缓冲区数组第0个位置
+}
+
+/* 返回pos在缓冲区的下一个位置值 */
+static int32_t next_pos(int32_t pos){
+  return (pos + 1)% bufsize;
+}
+
+/* 判断队列是否已满 */
+bool ioq_full(struct ioqueue* ioq){
+  ASSERT(intr_get_status() == INTR_OFF);
+  return next_pos(ioq->head) == ioq->tail;
+}
+
+/* 判断队列是否以空 */
+static bool ioq_empty(struct ioqueue* ioq){
+  ASSERT(intr_get_status() == INTR_OFF);
+  return ioq->head == ioq->tail;
+}
+
+/* 使当前生产者或消费者在缓冲区上等待 */
+static void ioq_wait(struct task_struct** waiter){
+  ASSERT(*waiter == NULL && waiter != NULL);
+  *waiter = running_thread();
+  thread_block(TASK_BLOCKED);
+}
+
+/* 唤醒waiter */
+static void wakeup(struct task_struct** waiter){
+  ASSERT(*waiter != NULL);
+  thread_unblock(*waiter);
+  *waiter = NULL;
+}
+
+/* 消费者从ioq队列中获取一个字符*/
+char ioq_getchar(struct ioqueue* ioq){
+  ASSERT(intr_get_status() == INTR_OFF);
+  /* 若缓冲区为空，把消费者ioq->consumer记为当前线程自己
+   * 目的是将来生产者往缓冲区里面装商品的时候，生产者知道唤醒哪个消费者
+   * 也就是幻想当前线程自己 */
+  while(ioq_empty(ioq)){
+    lock_acquire(&loq->lock);
+    ioq_wait(&ioq->consumer);
+    lock_release(&loq->lock);
+  }
+
+  char byte = ioq->buf[ioq->tail];      //从缓冲区取得一个字符
+  ioq->tail = next_pos(ioq->tail);      //把读游标移到下一个位置
+
+  if(ioq->producer != NULL){
+    wakeup(&ioq->producer);             //唤醒生产者
+  }
+  return byte;
+}
+
+/* 生产者从ioq队列中写入一个字符 */
+void ioq_putchar(struct ioqueue* ioq, char byte){
+  ASSERT(intr_get_status() == INTR_OFF);
+  /* 若缓冲区为满，把生产者ioq->producer记为自己，
+   * 目的和是当缓冲区里面的东西被消费者取完后让消费者知道唤醒哪个生产者，
+   * 也就是唤醒自己 */
+  while(ioq_full(ioq)){
+    lock_acquire(&ioq->lock);
+    loq_wait(&ioq->producer);
+    lock_release(&ioq->lock;)
+  }
+  ioq->buf[ioq->head] = byte;           //把字节放入缓冲区中
+  ioq->head = next_pos(ioq->head);      //把写游标移到下一个位置
+
+  if(ioq->consumer != NULL){
+    wakeup(&loq->consumer);             //唤醒消费者
+  }
+}
+
+```
+
+这里我们使用了生产者消费者模型，搭配了我们前面写的锁来实现互斥和同步，在每次我们对缓冲区进行操作的时候都需要进行关中断。然后我们在下面进行实战，这里我们需要注意目前咱们仅实现的是单一的生产者消费者的环境，也就是生产者是键盘驱动，消费者是将来的shell，所以本节要将在键盘驱动中处理的字符存入环形缓冲区当中。
+具体修改代码这里由于实在代码当中插入，所以比较难贴出来，因此我在这里就简单讲解一下，首先就是定义一个ioqueue队列，然后在我们输入的时候，首先输出到屏幕的同时也输入到对应的缓冲区，这里我们缓冲区大小为64字节，当我们将缓冲区输入满的时候继续输入就将阻塞自身线程等待消费者唤醒，但注意这里我们并没有构造出消费者，所以最终实现的效果应该就是我们输入了63个字节之后就无法输入了，我们看一下下面的效果
+
+![](http://imgsrc.baidu.com/super/pic/item/4ec2d5628535e5ddf651a21933c6a7efcf1b62f2.jpg)
+可以看到确实输入到最后三个字节ccc之后就无法输入了
+
+---
+这里我们来演示生产者和消费者之间的协同工作，此时我们创建两个线程来作为消费者，让他们来从键盘缓冲区中消费数据，所以这里我们需要打开时钟中断，依旧是在interrupt.c中修改,也就是IRQ0位置为0,而由于键盘缓冲区是全局数据结构，所以他在生产者和消费者之间共享，因此在添加生产者消费者之前还要在keyboard.h中添加此缓冲区的声明，如下:
+```
+#ifndef __DEVICE_KEYBOARD_H
+#define __DEVICE_KEYBOARD_H
+void keyboard(void);
+extern struct ioqueue kbd_buf;
+#endif
+
+```
+
+然后我们来修改main函数
+```
+#include "print.h"
+#include "init.h"
+#include "thread.h"
+#include "interrupt.h"
+#include "console.h"
+#include "ioqueue.h"
+#include "keyboard.h"
+
+void k_thread_a(void*);     //自定义线程函数
+void k_thread_b(void*);
+
+int main(void){
+  put_str("I am Kernel\n");
+  init_all();
+  thread_start("k_thread_a", 31, k_thread_a, " A_");
+  thread_start("k_thread_b", 31, k_thread_b, " B_");
+  intr_enable();
+  while(1);//{
+    //console_put_str("Main ");
+  //};
+  return 0;
+}
+
+/* 在线程中运行的函数 */
+void k_thread_a(void* arg){
+  /* 这里传递通用参数，这里被调用函数自己需要什么类型的就自己转换 */
+  while(1){
+    enum intr_status old_status = intr_disable();
+    if(!ioq_empty(&kbd_buf)){
+      console_put_str(arg);
+      char byte = ioq_getchar(&kbd_buf);
+      console_put_char(byte);
+    }
+    intr_set_status(old_status);
+  }
+}
+void k_thread_b(void* arg){
+  /* 这里传递通用参数，这里被调用函数自己需要什么类型的就自己转换 */
+  while(1){
+    enum intr_status old_status = intr_disable();
+    if(!ioq_empty(&kbd_buf)){
+      console_put_str(arg);
+      char byte = ioq_getchar(&kbd_buf);
+      console_put_char(byte);
+    }
+    intr_set_status(old_status);
+  }
+}
+
+```
+
+这里也就是简单的进行生产者消费者测试，效果应该是我们输入的字符会直接打入缓冲区，然后AB两个线程会争相从缓冲区中取出字符然后打印到屏幕，我们看看效果
+![](http://imgsrc.baidu.com/super/pic/item/8601a18b87d6277f018d35fe6d381f30e824fc5d.jpg)
+上面的图是我一直长按K建的效果，这样我就会不断出发键盘中断然后往缓冲区输入字符，这时候两个线程就会不断取出进行输出，从图片中来看确实实现了争相输出
+
+## 0x06 总结
+本次比较常规，感觉对信号和锁的实现需要多思考思考，其中比较难想通的我觉得是阻塞和唤醒的时候的问题。对于lock的操作也需要多品味一下，之后的生产者和消费者在操作系统中算是比较经典了也很容易理解。

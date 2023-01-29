@@ -44,7 +44,7 @@ static void pic_init(void){
   outb(PIC_S_DATA, 0x01);           //ICW4:同上
 
   /* 打开主片上的IR0,也就是目前只接受时钟产生的中断 */
-  outb(PIC_M_DATA, 0xfd);           //OCW1:IRQ0外全部屏蔽
+  outb(PIC_M_DATA, 0xfc);           //OCW1:IRQ0外全部屏蔽
   outb(PIC_S_DATA, 0xff);           //OCW1:IRQ8~15全部屏蔽
 
   put_str("     pic init done!\n");
