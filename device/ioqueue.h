@@ -24,6 +24,7 @@ struct ioqueue{
 
 void ioqueue_init(struct ioqueue* ioq);
 bool ioq_full(struct ioqueue* ioq);
+bool ioq_empty(struct ioqueue* ioq);
 char ioq_getchar(struct ioqueue* ioq);
 void ioq_putchar(struct ioqueue* ioq, char byte);
 #endif

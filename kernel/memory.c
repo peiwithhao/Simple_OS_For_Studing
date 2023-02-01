@@ -5,8 +5,9 @@
 #include "global.h"
 #include "debug.h"
 #include "string.h"
+#include "sync.h"
+#include "thread.h"
 
-#define PG_SIZE 4096    //4K
 /************************ 位图地址 ****************************/
 #define MEM_BITMAP_BASE 0xc009a000
 /**************************************************************/
@@ -27,6 +28,7 @@ struct pool{
   struct bitmap pool_bitmap;    //本内存池用到的位图结构，用于管理物理内存
   uint32_t phy_addr_start;      //本内存池的物理起始地址
   uint32_t pool_size;
+  struct lock lock;             //申请内存的时候实现互斥
 };
 
 struct pool kernel_pool, user_pool; //生成内核物理内存池和用户物理内存池
@@ -36,7 +38,7 @@ struct virtual_addr kernel_vaddr;   //此结构用来给内核分配虚拟地址
 static void* vaddr_get(enum pool_flags pf, uint32_t pg_cnt){
   int vaddr_start = 0, bit_idx_start = -1;
   uint32_t cnt = 0;
-  if(pf == PF_KERNEL){
+  if(pf == PF_KERNEL){  //如果申请的是内核内存池
     bit_idx_start = bitmap_scan(&kernel_vaddr.vaddr_bitmap, pg_cnt);  //先查找位图看是否有足够大的内存
     if(bit_idx_start == -1){
       return NULL;
@@ -46,7 +48,18 @@ static void* vaddr_get(enum pool_flags pf, uint32_t pg_cnt){
     }
     vaddr_start = kernel_vaddr.vaddr_start + bit_idx_start * PG_SIZE;
   }else{
-    //用户内存池，之后再补充
+    //用户内存池
+    struct task_struct* cur = running_thread();
+    bit_idx_start = bitmap_scan(&cur->userprog_vaddr.vaddr_bitmap, pg_cnt);     //查找当前线程的虚拟用户内存池
+    if(bit_idx_start == -1){
+      return NULL;
+    }
+    while(cnt < pg_cnt){
+      bitmap_set(&cur->userprog_vaddr.vaddr_bitmap, bit_idx_start + cnt++, 1);
+      vaddr_start = cur->userprog_vaddr.vaddr_start + bit_idx_start * PG_SIZE;
+      /* (0xc0000000 - PG_SIZE)作为用户3级栈已经在start_process被分配 */
+      ASSERT((uint32_t)vaddr_start < (0xc0000000 - PG_SIZE));
+    }
   }
   return (void*)vaddr_start;
 }
@@ -153,6 +166,54 @@ void* get_kernel_pages(uint32_t pg_cnt){
   return vaddr;
 }
 
+/* 在用户空间申请4K内存，并返回其虚拟地址 */
+void* get_user_pages(uint32_t pg_cnt){
+  lock_acquire(&user_pool.lock);
+  void* vaddr = malloc_page(PF_USER, pg_cnt);
+  memset(vaddr, 0, pg_cnt * PG_SIZE);
+  lock_release(&user_pool.lock);
+  return vaddr;
+}
+
+/* 将地址vaddr与pf池中的物理地址关联，仅支持一页空间分配,这里是咱们自己选择一块虚拟地址进行分配 */
+void* get_a_page(enum pool_flags pf, uint32_t vaddr){
+  struct pool* mem_pool = pf & PF_KERNEL ? &kernel_pool : &user_pool;
+  lock_acquire(&mem_pool->lock);
+
+  /* 先将虚拟地址对应的位图置1 */
+  struct task_struct* cur = running_thread();
+  int32_t bit_idx = -1;
+  /* 若当前是用户进程申请用户内存，就修改用户进程自己的虚拟地址位图 */
+  if(cur->pgdir != NULL && pf == PF_USER){
+    bit_idx = (vaddr - cur->userprog_vaddr.vaddr_start)/PG_SIZE;
+    ASSERT(bit_idx > 0);
+    bitmap_set(&cur->userprog_vaddr.vaddr_bitmap, bit_idx, 1);
+  }else if(cur->pgdir == NULL && pf == PF_KERNEL){
+    /* 如果当前是内核线程申请内核内存，则修改kernel_vaddr */
+    bit_idx = (vaddr - kernel_vaddr.vaddr_start)/PG_SIZE;
+    ASSERT(bit_idx > 0);
+    bitmap_set(&kernel_vaddr.vaddr_bitmap, bit_idx, 1);
+  }else{
+    PANIC("get_a_page:not allow kernel alloc userspace or user alloc kernelspace by get_a_page");
+  }
+
+  void* page_phyaddr = palloc(mem_pool);
+  if(page_phyaddr == NULL){
+    return NULL;
+  }
+  page_table_add((void*)vaddr, page_phyaddr);
+  lock_release(&mem_pool->lock);
+  return (void*)vaddr;
+}
+
+/* 得到虚拟地址映射到的物理地址 */
+uint32_t addr_v2p(uint32_t vaddr){
+  uint32_t* pte = pte_ptr(vaddr);
+  /* (*pte)的值是页表所在的物理页框的地址，
+   * 去掉其低12位的页表项属性 + 虚拟地址vaddr的低12位*/
+  return ((*pte & 0xfffff000) + (vaddr & 0x00000fff));
+}
+
 /* 初始化内存池 */
 static void mem_pool_init(uint32_t all_mem){    //这里的all_mem传递的参数是总共的物理内存
   put_str("     mem_poool_init_start \n ");
@@ -179,7 +240,8 @@ static void mem_pool_init(uint32_t all_mem){    //这里的all_mem传递的参�
 
   kernel_pool.pool_bitmap.btmp_bytes_len = kbm_length;
   user_pool.pool_bitmap.btmp_bytes_len = ubm_length;
-  
+
+ 
 /******************* 内核内存池和用户内存池位图 *******************
  * 位图是全局的数据，长度不固定
  * 全局或静态的数组需要在编译时知道其长度
@@ -208,6 +270,9 @@ static void mem_pool_init(uint32_t all_mem){    //这里的all_mem传递的参�
   /* 将位图置为0 */
   bitmap_init(&kernel_pool.pool_bitmap);
   bitmap_init(&user_pool.pool_bitmap);
+  
+  lock_init(&kernel_pool.lock);
+  lock_init(&user_pool.lock);
   
   /* 下面初始化内核虚拟地址的位图，按照实际物理内存大小生成数组 */
   kernel_vaddr.vaddr_bitmap.btmp_bytes_len = kbm_length;         //用于维护内核堆的虚拟地址，所以要和内核内存池大小一致

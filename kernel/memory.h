@@ -2,6 +2,7 @@
 #define __KERNEL_MEMORY_H
 #include "stdint.h"
 #include "bitmap.h"
+#include "memory.h"
 
 /* 内存池标记，用于判断用哪个内存池，这里采用enum枚举 */
 enum pool_flags{
@@ -25,4 +26,7 @@ extern struct pool kernel_pool, user_pool;
 void mem_init(void);
 void* malloc_page(enum pool_flags pf, uint32_t pg_cnt);
 void* get_kernel_pages(uint32_t pg_cnt);
+void* get_user_pages(uint32_t pg_cnt);
+void* get_a_page(enum pool_flags pf, uint32_t vaddr);
+uint32_t addr_v2p(uint32_t vaddr);
 #endif

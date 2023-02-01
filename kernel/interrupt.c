@@ -4,11 +4,13 @@
 #include "io.h"
 #include "print.h"
 
-#define IDT_DESC_CNT 0x30           //目前总支持的中断数
 #define PIC_M_CTRL 0x20             //主片控制端口
 #define PIC_M_DATA 0x21             //主片数据端口
 #define PIC_S_CTRL 0xA0             //从片控制端口
 #define PIC_S_DATA 0xA1             //从片数据端口
+
+#define IDT_DESC_CNT 0x30           //目前总支持的中断数
+
 #define EFLAGS_IF 0x00000200        //eflags寄存器中的if位为1
 #define GET_EFLAGS(EFLAG_VAR) asm volatile("pushfl; pop %0" : "=g" (EFLAG_VAR))   //pushfl是指将eflags寄存器值压入栈顶
 
@@ -26,7 +28,9 @@ static void make_idt_desc(struct gate_desc* p_gdesc, uint8_t attr, intr_handler 
 static struct gate_desc idt[IDT_DESC_CNT];  //idt是中断描述符表，本质上是中断描述符数组
 
 char* intr_name[IDT_DESC_CNT];              //用于保存异常的名字，这里感觉很像ELF文件的结构了
+
 intr_handler idt_table[IDT_DESC_CNT];       //定义中断处理程序地址数组
+
 extern intr_handler intr_entry_table[IDT_DESC_CNT];     //声明引用在kernel.S中的中断处理函数入口数组
 
 /* 初始化可编程中断控制器 */
@@ -44,7 +48,7 @@ static void pic_init(void){
   outb(PIC_S_DATA, 0x01);           //ICW4:同上
 
   /* 打开主片上的IR0,也就是目前只接受时钟产生的中断 */
-  outb(PIC_M_DATA, 0xfc);           //OCW1:IRQ0外全部屏蔽
+  outb(PIC_M_DATA, 0xfe);           //OCW1:IRQ0外全部屏蔽
   outb(PIC_S_DATA, 0xff);           //OCW1:IRQ8~15全部屏蔽
 
   put_str("     pic init done!\n");
@@ -65,7 +69,7 @@ static void idt_desc_init(void){
   for(i = 0;i < IDT_DESC_CNT; i++){
     make_idt_desc(&idt[i],IDT_DESC_ATTR_DPL0, intr_entry_table[i]);
   }
-  put_str("idt_desc_init_done!\n");
+  put_str("  idt_desc_init_done!\n");
 }
 
 /* 通用的中断处理函数，一般用在出现异常的时候处理 */
@@ -82,13 +86,14 @@ static void general_intr_handler(uint64_t vec_nr){
     cursor_pos++;
   }
   set_cursor(0);    //重置光标值
-  put_str("!!!!!!!!  exception message begin  !!!!!!!!");
+  put_str("!!!!!!!!  exception message begin  !!!!!!!!\n");
   set_cursor(88);    //从第二行第8个字符开始打印
   put_str(intr_name[vec_nr]);
   if(vec_nr == 14){         //若为PageFault,将缺失的地址打印出来并悬停
     int page_fault_vaddr = 0;
     asm("movl %%cr2, %0" : "=r"(page_fault_vaddr));     //cr2存放造成PageFault的地址
     put_str("\npage fault addr is ");
+    put_int(page_fault_vaddr);
   }
   put_str("\n!!!!!!!!   exception message end !!!!!!!");
   /* 能进入中断处理程序就表示已经在关中断情况下了，不会出现调度进程的情况，因此下面的死循环不会被中断 */
@@ -124,7 +129,6 @@ static void exception_init(void){
   intr_name[17] = "#AC Alignment Check Exception";
   intr_name[18] = "#MC Machine-Check Exception";
   intr_name[19] = "#XF SIMD Floating-Point Exception";
-  put_str("     exception init done \n");
 }
 
 /* 开中断并返回开中断前的状态 */
@@ -179,7 +183,7 @@ void idt_init(){
   pic_init();               //初始化8259A
 
   /* 加载idt */
-  uint64_t idt_operand = (sizeof(idt)-1) | ((uint64_t)((uint32_t)idt << 16));   //这里(sizeof(idt)-1)是表示段界限，占16位，然后我们的idt地址左移16位表示高32位，表示idt首地址
+  uint64_t idt_operand = ((sizeof(idt)-1) | ((uint64_t)(uint32_t)idt << 16));   //这里(sizeof(idt)-1)是表示段界限，占16位，然后我们的idt地址左移16位表示高32位，表示idt首地址
   asm volatile("lidt %0" : : "m" (idt_operand));
   put_str("idt_init done\n");
 }

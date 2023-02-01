@@ -1,767 +1,413 @@
-## 0x00 上一节的遗留问题
-大伙从上一节可以看出我们在实现多线程的途中会出现很多空格以及最后会出现GP异常，这个GP异常我们上一节经过调试也发现是因为我们显存段输入的值超过了我们预计的值所以生成异常，这里我来解释下为什么会产生这么多的问题。
-首先来整体看待一下，我们实现多线程是要保证两个环境的保存，其一就是由线程转向时钟中断的过程，此时我们的线程都是输出字符串以及其他功能，所以这里我们需要保存的环境是比较多的，有那几个通用寄存器和一些段寄存器，我们从打印的效果可以看出我们打印字符也是成功打印了没有出现失误的情况（这里单指一个线程内）。然后其二就是通过时钟中断转换为其他线程，然后需要转而执行到kernel.S中的intr_exit函数，我们发现我们输出的空格就是出现在线程切换后的时刻，所以我们有充分的理由认为是第二个环境的保存中出现了错误。
-我们在学习操作系统的时候都会知道同步互斥的概念，也就是说我们在访问临界区的时候，如果我们的代码没有按照正常的顺序走，将会出现十分不同的情况。而在我们这个例子中，打印字符也被分为了三个步骤：
-1. 获取光标值
-2. 将光标值转换为字节地址
-3. 更新光标值
-
-而在上述几个步骤中，由于咱们之前并没有实现互斥的机制，所以这导致了可能a线程刚执行完第二步，此时中断发生切换b线程恰好执行了第三步，而咱们的光标值是保存在显存寄存器中的，这属于是临界资源，这也就导致了咱们的字符被覆盖，也就会出现少字符的情况。
-
-说完上面的我们来尝试在打印字符串过程中关中短来保证上面三步不可被打断然后尝试：
+## 0x00 基础知识们
+今天我们来讲解一些关于用户进程的知识，首先我们需要了解一下TSS，这个在我们之前讲解特权级的时候曾经提到过，今天我们来对其进行详细的分析。
+TSS是为了使得CPU支持多任务来实现的，这里我感觉类似于线程中的PCB，但是这个是基于进程，而PCB是线程自己也会拥有一个，所以这里切换进程也就是需要使用TSS来标记上下文等任务信息，而CPU也是用不同的TSS来区分不同的任务。
+为了使用TSS，我们需要知道TSS其实也是一段数据，我们要访问他需要通过咱们的GDT，也就是全局描述符表，这个表写到现在涵盖的东西确实多，有LDT描述符，门，数据段，代码段，视频段，所以这里他才叫全局。咱们为了访问TSS所在的那个段，所以必定存在一个描述符来帮助我们，他同其他描述符结构类似，如下：
+![](http://imgsrc.baidu.com/super/pic/item/e61190ef76c6a7efc728a3e0b8faaf51f2de66ed.jpg)
+TSS描述符属于系统段，所以S位为0,在S为0的情况下，TYPE字段字段值为10B1,这里的B（Busy）位为1表示任务繁忙，为0表示空闲。
+这里的任务繁忙有两种情况，一种是任务确实正在CPU上运行，另一种是该任务调用了新任务，而新任务正在CPU上运行，实现了嵌套。
+而任务空闲也就是他不再CPU上运行，且他调用的新进程也是，此时TYPE字段为1001.且该B位是由硬件来设置的，跟我们没关系
+B位的含义是保证任务不会自己调用自己，因为若正在执行的任务所调用的函数段的B位为1,则说明他在调用自己，或者在调用自己的调用者们。下面便是TSS的结构，这里的图在之前也放出来过
+![](http://imgsrc.baidu.com/super/pic/item/f703738da9773912367d8ea7bd198618377ae299.jpg)
+这里可以看出TSS本身自己就完全上下文的信息，其中包含了许多寄存器的备份，并且这里也包含了该任务所需要的栈地址，我提醒大家一点之前讲解的知识，那就是除了从中断和调用门返回之外，CPU不允许从高特权级转向为低特权级。所以这三组栈仅仅是CPU用来从低特权级跳到高特权级使用的，注意这三组栈地址在TSS中是不会改变的，也就是说不论你在哪个特权级进行了怎么样的压栈，当你从别的特权级返回到这个特权级的时候，他还是会从TSS中获取原始栈基址，而不管你曾经是否压过许多值。
+Linux中只使用到了0级和3级特权级，我们的操作系统是仿linux的，所以这里我们也采用同样的作法，咱么也只设置SS0和esp0就行.
+CPU本身是支持TSS的，这说明访问TSS以及识别他的结构过程并不是咱们需要做的工作。当任务被换下CPU的时候，CPU会自动将一些寄存器的值存入TSS相应位置，当任务上CPU运行的时候同样如此。
+而我们本身是需要访问TSS的，所以说这里存在一个专门帮助我们寻找到TSS地址的寄存器TR，注意这里是帮助咱们寻找到TSS，而不是像GDTR那样专门有一部分位用来存放GDT首地址，前面咱们说过TSS是存在描述符的且存放在GDT中，所以我们访问他是跟访问其他普通段描述符一样，都是使用选择子，通过这个选择子我们就能够找到在GDT中的TSS段描述符，然后通过该描述符来找到咱们的TSS结构，下面给出TR结构和描述符缓冲器：
+![](http://imgsrc.baidu.com/super/pic/item/77c6a7efce1b9d16f58feea7b6deb48f8d5464af.jpg)
+这里说明一点LDT跟TSS也是同样的存储以及访问标志。
+说完了访问规则，这里我再补充一点那就是最开始我们需要对TR进行初始化，这里当然跟其他基址寄存器类似不能使用mov等指令，这里使用的是
 ```
-#include "print.h"
-#include "init.h"
-#include "thread.h"
-#include "interrupt.h"
-
-void k_thread_a(void*);     //自定义线程函数
-void k_thread_b(void*);
-
-int main(void){
-  put_str("I am Kernel\n");
-  init_all();
-  thread_start("k_thread_a", 31, k_thread_a, "argA ");
-  thread_start("k_thread_b", 8, k_thread_b, "argB ");
-  intr_enable();
-  while(1){
-    intr_disable();
-    put_str("Main ");
-    intr_enable();
-  };
-  return 0;
-}
-
-/* 在线程中运行的函数 */
-void k_thread_a(void* arg){
-  /* 这里传递通用参数，这里被调用函数自己需要什么类型的就自己转换 */
-  char* para = arg;
-  while(1){
-    intr_disable();
-    put_str(para);
-    intr_enable();
-  }
-}
-void k_thread_b(void* arg){
-  /* 这里传递通用参数，这里被调用函数自己需要什么类型的就自己转换 */
-  char* para = arg;
-  while(1){
-    intr_disable();
-    put_str(para);
-    intr_enable();
-  }
-}
-
+ltr "16位通用寄存器"或者"16位内存单元"
 ```
 
-![](http://imgsrc.baidu.com/super/pic/item/0e2442a7d933c8954ca7a5bd941373f08302001e.jpg)
-这里发现运行是完全没问题的，并且也不会报出GP异常，这里我再来解释一下GP异常的发生。
-我们在上一节的末尾是给出了产生GP异常的直接原因的，那就是偏移地址超过了咱们预定的范围，如下：
-![](http://imgsrc.baidu.com/super/pic/item/a8ec8a13632762d015199479e5ec08fa503dc6d5.jpg)
-这里可以发现他这条指令是位于咱们print.S中的.put_other底下的一条指令：
+这里注意我们的地一个任务是咱们手动存储TSS描述符选择子，但是之后的任务切换时就不关咱们的事了，在切换任务后，CPU会将其对应的TSS中的寄存器值加载到对应的寄存器当中，然后将该任务的TSS描述符选择子自动加载到TR当中。下面再给出一个GDT,LDT,TSS的大郅关系图：
+![](http://imgsrc.baidu.com/super/pic/item/503d269759ee3d6dfb7df30d06166d224e4adeb9.jpg)
+CPU原生态所支持的本来是希望每个任务拥有一个TSS，然后任务切换通过中断门或者调用门进行切换，然后设置eflags寄存器的标志位来确保不会调用自身，这样有个十分严重的问题那就是效率太慢，因为每次你要进行从任务加载选择子到TR寄存器，这些切换工作就十分繁杂，如果大伙有兴趣了解一下CPU原生态支持的任务切换可以自行搜索。
+事实上许多x86操作系统也并不采用原生态的方案，因此我们采用Linux的做法，也就是一个CPU就单独使用一个TSS，我们进行任务切换就是直接更新其中的内容，而不是说更新TR了。接下来我们直接开始实现。
+
+## 0x01 初始化TSS
+首先我们就往global.h中加入对应的TSS描述符字段，如下
 ```
-.put_other:
-  shl bx,1          ;表示对应显存中的偏移字节
-  mov [gs:bx], cl   ;ASCII字符本身
-  inc bx
-  mov byte[gs:bx], 0x07     ;字符属性
-  shr bx, 1                 ;下一个光标值
-  inc bx
-  cmp bx, 2000              ;若小于2000,则表示没写道显存最后，因为80×25=2000
-  jl .set_cursor            ;若大于2000,则换行处理,也就是进行下一行的换行处理
-
-```
-
-也就是其中的 `mov [gs:bx], cl`,这里我们的bx本身是存放偏移字符的，但由于我们一个字符是按照两字节来计算，所以这里我们需要先将bx左移1位来乘二，这里我们的bx乘二之后却变成了0x9f9e，这里我们关注一下标志位i寄存器eflags，我们之前提过这个CF标志位是表明了进位/借位，这里大写表明这个标志位为1,所以说明了咱们的bx左移的时候是进位了的，所以我们的bx正确值应该是0x19f9e，这里我们除以二进行还原得出0xcfcf,这个0xcfcf就是他传入的光标数，我们可以计算得出这里就已经越界了，因为咱们的光标值范围应该是0～1999,也就是0x0～0x7cf，这里说明很可能是我们在设置光标值的过程中出现了条件竞争的错误，这也只有在多线程的过程中才会出现的。
-我们将光标的设置分为如下四种操作：
-1. 通知光标寄存器要设置高8位;
-2. 输入光标值的高8位
-3. 通知光标寄存器要设置低8位
-4. 输入光标值的低8位
-
-相信跟我一起写过代码的同学会熟悉这些步骤，因为这就是咱们写汇编print.S的代码顺序，接下来我们来正式解释为何会产生0x9f9e
-这里我们注意这里的临界资源为光标寄存器，也就是咱们存放光标位置的端口。
-这里假设A线程正在CPU上运行，并且A线程要设置的光标值为0x7cf，也就是刚好是我们能设置的最大值1999,即屏幕右下角，在完成上述过程的第三步后，这时发生中断，切换了线程B运行，这里我们知道刚刚光标寄存器仅仅设置了高8位，也就是0x7,但其并不影响接下来的操作，此时光标寄存器的值仍然是0x7ce，因此此时B线程开始进行操作，当他在0x7ce输出一个字符后准备更新光标寄存器也就是将其加一得到2000,因此需要进行滚屏，而滚屏的操作相对来说比较繁琐，所以当B线程完成滚屏然后去更新光标寄存器的时候，这时候刚好完成第一步，第二步还没开始的时候处理器切换到运行A线程，这时候A线程继续刚刚的过程也就是进行第四布，可是此时光标寄存器以为你是要设置高8位，所以此时我们设置的0xcf就会输入到光标寄存器的高8位，就会得到0xcfcf，然后依次再进行输入字符操作就会出现GP异常。
-
----
-上述说了这么多，相信大家已经了解了保持互斥的必要性，但是我们不能每次都在临界区代码前后加上开关中断的手段，这里我们接下来会介绍锁的概念。
-
-
-## 0x01 同步与互斥
-这里先介绍点基础的术语知识：
-+ 公共资源：被所有任务共享的一套资源
-+ 临界区：使用公共资源的代码程序
-+ 互斥：值某一时刻公共资源只能被1个任务独享
-+ 竞争条件：指多个任务同时进入临界区，大家对公共资源的访问是以竞争的方式并行存在的，因此公共资源的最终状态依赖于这些任务的临界区中的微操作执行顺序
-
-从上面的解释中我们基本可以一一定位咱们程序中的这几点对应，其中公共资源不必多说，那自然是咱们的显卡的光标寄存器了，而因为咱们每个线程都会使用put_char函数，且这个函数是操作光标寄存器的，所以这段代码也就是咱们每个线程的临界区。
-而这些机制所造成的问题都可以通过在临界区开关中断来实现，这里我们需要解决的操作就是在哪儿进行关中断的操作，如果说我们关中断的操作距离临界区太远就会造成多任务调度的低效，这也就违背了我们当初设计多线程的初衷。
-然后我们来介绍锁的概念，相信大家一定上操作系统这门课的时候会听说过PV操作，也就是信号量的计算，这个信号量最初是来源于铁轨上的信号灯，因为铁轨要满足任何时候铁轨上只能有一辆火车，所以他也存在着信号量系统。在计算机当中，信号量为0就表示没有可用信号。
-信号量也就是个计数器，他可以被看作资源的剩余量，而P操作就是减少信号量来获取资源，而V操作就是释放资源增加信号量，下面是PV操作分别的微操作：
-V操作：
-1. 将信号量的值加1
-2. 唤醒在此信号量上等待的线程
-
-P操作：
-1. 判断信号量是否大于0
-2. 若大于0,则将信号量减1
-3. 若等于0,则线程将自己阻塞，以在此信号量上等待
-
-其中若我们的信号量初值为1的话，那么称他为二元信号量，此时P操作就是获得锁，V操作就是释放锁，从而借此来保证只有1个线程进入临界区从而实现互斥，具体步骤如下：
-1. 线程A通过P操作获得锁，此时信号量减一得0
-2. 线程B想通过P操作获取锁，但发现信号量为0则阻塞自己
-3. 线程A运行完毕通过V操作释放锁，此时信号量加1得1,然后线程A将线程B唤醒
-4. 线程B获取了锁，进入临界区
-
-基础知识介绍完毕，此刻我们来进行代码实现，首先我们需要知道阻塞是个什么，之前我们调度器都是将运行任务转到就绪队列，然后从就绪队列调度一个任务上处理器运行，如果说我们不想让他运行的话应该怎么办呢，那就只能别让他出现在就绪队列了，这样调度器根本不会让他上处理器运行，其实说开了十分简单，这里我们先在thread.c中增加一个阻塞函数以及解除阻塞函数：
-```
-/* 当前线程将自己阻塞，标志其状态为stat. */
-void thread_block(enum task_status stat){
-  /* stat取值为TASK_BLOCKED,TASK_WAITING,TASK_HANGING才不会被调度 */
-  ASSERT(((stat == TASK_BLOCKED) || (stat == TASK_WAITING) || (stat == TASK_HANGING)));
-  enum intr_status old_status = intr_disable();
-  struct task_struct* cur_thread = running_thread();
-  cur_thread->status = stat;    //设置状态为stat
-  schedule();                   //将当前线程换下处理器
-  /* 待当前线程被接触阻塞后才会继续运行下面的intr_set_status */
-  intr_set_status(old_status);
-}
-
-/* 将线程pthread解除阻塞 */
-void thread_unblock(struct task_struct* pthread){
-  enum intr_status old_status = intr_disable();
-  ASSERT(((pthread->status == TASK_BLOCKED) || (pthread->status == TASK_WAITING) || (pthread->status == TASK_HANGING)));
-  if(pthread->status != TASK_READY){
-    ASSERT(!elem_find(&thread_ready_list, &pthread->general_tag));
-    if(elem_find(&thread_ready_list, &pthread->general_tag)){
-      PANIC("thread unblock: blocked thread in ready_list\n");
-    }
-    list_push(&thread_ready_list, &pthread->general_tag);   //放到队列首，使得其尽快被调度
-    pthread->status = TASK_READY;
-  }
-  intr_set_status(old_status);
-}
-```
-
-这里的代码很简单，值得注意的是一般阻塞行为是线程自己阻塞自己，而唤醒行为则是其他线程好心给你唤醒，也就是说自己阻塞自己，但要等别人来唤醒你。
-以上就是锁的基础部件，这里我们来继续实现锁,首先我们定义一些结构体，他位于thread/sync.h：
-```
-#ifndef __THREAD_SYNC_H
-#define __THREAD_SYNC_H
-
-#include "list.h"
+#ifndef __KERNEL_GLOBAL_H
+#define __KERNEL_GLOBAL_H
 #include "stdint.h"
-#include "thread.h"
+typedef int bool;
+#define true 1
+#define false 0
+#define NULL 0
 
-/* 信号量结构 */
-struct semaphore{
-  uint8_t value;                //记录信号量的值
-  struct list waiters;          //记录等待线程
-};
+/* ---------------- GDT描述符属性 ---------------- */
+#define DESC_G_4K   1
+#define DESC_D_32   1
+#define DESC_L      0       //64位代码标记
+#define DESC_AVL    0       //cpu不用此位
+#define DESC_P      1
+#define DESC_DPL_0  0
+#define DESC_DPL_1  1
+#define DESC_DPL_2  2
+#define DESC_DPL_3  3
+/***************************************************
+ * 代码段和数据段属于存储段，tss和各种门属于系统段，
+ * 所以这里的S位需要区分开来
+ * *************************************************/
+#define DESC_S_CODE     1
+#define DESC_S_DATA     DESC_S_CODE
+#define DESC_S_SYS      0
+#define DESC_TYPE_CODE  8   //x=1,c=0,r=0,a=0代码段可执行、非依从、不可读，已访问位a清0
+#define DESC_TYPE_DATA  2   //x=0,e=0,w=1,a=0数据段不可执行、向上扩展、可写，已访问位a清0
+#define DESC_TYPE_TSS   9   //B位为0,不忙
 
-/* 锁结构 */
-struct lock{
-  struct task_struct* holder;   //锁的持有者
-  struct semaphore semaphore;   //用二元信号量来实现锁
-  uint32_t holder_repeat_nr;    //锁的持有者重复申请锁的次数
+/* ---------------- 选择子属性 ------------------- */
+#define RPL0 0
+#define RPL1 1
+#define RPL2 2
+#define RPL3 3
+
+#define TI_GDT 0
+#define TI_LDT 1
+
+#define SELECTOR_K_CODE ((1<<3) + (TI_GDT << 2) + RPL0)
+#define SELECTOR_K_DATA ((2<<3) + (TI_GDT << 2) + RPL0)
+#define SELECTOR_K_STACK SELECTOR_K_DATA
+#define SELECTOR_K_GS ((3<<3) + (TI_GDT << 2) + RPL0)
+/* 第3个段描述符是显存，第4个是TSS */
+#define SELECTOR_U_CODE ((5<<3) + (TI_GDT << 2) + RPL3)
+#define SELECTOR_U_DATA ((6<<3) + (TI_GDT << 2) + RPL3)
+#define SELECTOR_U_STACK SELECTOR_U_DATA
+
+#define GDT_ATTR_HIGH ((DESC_G_4K << 7) + (DESC_D_32 << 6) + (DESC_L << 5) + (DESC_AVL << 4))
+#define GDT_CODE_ATTR_LOW_DPL3 ((DESC_P << 7) + (DESC_DPL_3 << 5) + (DESC_S_CODE << 4) + DESC_TYPE_CODE)
+#define GDT_DATA_ATTR_LOW_DPL3 ((DESC_P << 7) + (DESC_DPL_3 << 5) + (DESC_S_DATA << 4) + DESC_TYPE_DATA)
+
+
+/* ----------------- TSS描述符属性-------------------- */
+#define TSS_DESC_D  0
+#define TSS_ATTR_HIGH ((DESC_G_4K << 7) + (TSS_DESC_D << 6) + (DESC_L << 5) + (DESC_AVL << 4) + 0x0)
+#define TSS_ATTR_LOW ((DESC_P << 7) + (DESC_DPL_0 << 5) + (DESC_S_SYS << 4) + DESC_TYPE_TSS)
+#define SELECTOR_TSS ((4<<3) + (TI_GDT << 2) + RPL0)
+
+/* ------------ IDT描述符属性 -------------- */
+#define IDT_DESC_P  1
+#define IDT_DESC_DPL0 0
+#define IDT_DESC_DPL3 3
+#define IDT_DESC_32_TYPE    0xE     //32位的门
+#define IDT_DESC_16_TYPE    0x6     //16位的门，不会用到
+#define IDT_DESC_ATTR_DPL0 ((IDT_DESC_P << 7) + (IDT_DESC_DPL0 << 5) + IDT_DESC_32_TYPE)
+#define IDT_DESC_ATTR_DPL3 ((IDT_DESC_P << 7) + (IDT_DESC_DPL3 << 5) + IDT_DESC_32_TYPE)
+
+/* 定义GDT中的描述符的结构 */
+struct gdt_desc{
+  uint16_t limit_low_word;
+  uint16_t base_low_word;
+  uint8_t base_mid_byte;
+  uint8_t attr_low_byte;
+  uint8_t limit_high_attr_high;
+  uint8_t base_high_byte;
 };
 
 
 #endif
 ```
 
-上面的重复申请次数是指一般情况下我们进入临界区之前会加锁，但有时候哦我们可能持有锁之后还会再申请此锁，这样以来会导致释放两次锁，为了避免这种问题，我们使用holder_repeat_nr来记录此次数防止我们过多释放锁。
-接下来我们查看实现文件thread/sync.c
+以上就是我们最新的global.h，然后我们创建文件userprog/tss.c,其实质内容也仅仅是构造TSS描述符然后加到GDT中，然后重载gdtr和tr
 ```
-#include "sync.h"
-#include "stdint.h"
+#include "tss.h"
+#include "thread.h"
+#include "global.h"
+#include "string.h"
+#include "print.h"
+/* 任务状态段tss结构 */
+struct tss{
+  uint32_t backlink;
+  uint32_t* esp0;
+  uint32_t ss0;
+  uint32_t* esp1;
+  uint32_t ss1;
+  uint32_t* esp2;
+  uint32_t ss2;
+  uint32_t cr3;
+  uint32_t (*eip) (void);
+  uint32_t eflags;
+  uint32_t eax;
+  uint32_t ecx;
+  uint32_t edx;
+  uint32_t ebx;
+  uint32_t esp;
+  uint32_t ebp;
+  uint32_t esi;
+  uint32_t edi;
+  uint32_t es;
+  uint32_t cs;
+  uint32_t ss;
+  uint32_t ds;
+  uint32_t fs;
+  uint32_t gs;
+  uint32_t ldt;
+  uint32_t trace;
+  uint32_t io_base;
+};
+static struct tss tss;
+
+/* 更新tss中esp0字段的值为pthread的0级栈 */
+void update_tss_esp(struct task_struct* pthread){
+  tss.esp0 = (uint32_t*)((uint32_t)pthread + PG_SIZE);
+}
+
+/* 创建gdt描述符 */
+static struct gdt_desc make_gdt_desc(uint32_t* desc_addr, uint32_t limit, uint8_t attr_low, uint8_t attr_high){
+  uint32_t desc_base = (uint32_t)desc_addr;
+  struct gdt_desc desc;
+  desc.limit_low_word = limit & 0x0000ffff;
+  desc.base_low_word = desc_base & 0x0000ffff;
+  desc.base_mid_byte = ((desc_base & 0x00ff0000) >> 16);
+  desc.attr_low_byte = (uint8_t)(attr_low);
+  desc.limit_high_attr_high = ((limit & 0x000f0000)>>16) + (uint8_t)(attr_high);
+  desc.base_high_byte = desc_base >> 24;
+  return desc;
+}
+
+/* 在gdt中创建tss并重新加载gdt */
+void tss_init(){
+  put_str("tss_init start\n");
+  uint32_t tss_size = sizeof(tss);
+  memset(&tss, 0, tss_size);
+  tss.ss0 = SELECTOR_K_STACK;
+  tss.io_base = tss_size;       //io位图的偏移地址大于或等于TSS大小，这样设置表示没有IO位图
+  /* gdt段基址是0x900,我们将tss放到第4个位置，也就是0x900 + 0x20 */
+  /* 在gdt当中添加dpl为0的TSS描述符 */
+  *((struct gdt_desc*)0xc0000920) = make_gdt_desc((uint32_t*)&tss, tss_size - 1, TSS_ATTR_LOW, TSS_ATTR_HIGH);
+  /* 在gdt当中添加dpl为3的代码段和数据段描述符 */
+  *((struct gdt_desc*)0xc0000928) = make_gdt_desc((uint32_t*)0, 0xfffff, GDT_CODE_ATTR_LOW_DPL3, GDT_ATTR_HIGH);
+  *((struct gdt_desc*)0xc0000930) = make_gdt_desc((uint32_t*)0, 0xfffff, GDT_DATA_ATTR_LOW_DPL3, GDT_ATTR_HIGH);
+  /* gdt中16位的limit 32位的段基址 */
+  uint64_t gdt_operand = ((8*7-1) | ((uint64_t)(uint32_t)0xc0000900 << 16));    //7个描述符大小
+  asm volatile ("lgdt %0" : : "m"(gdt_operand));
+  asm volatile ("ltr %w0" : : "r"(SELECTOR_TSS));
+  put_str("tss_init and ltr done\n");
+}
+
+```
+
+最后我们再来看看实现成果，我们在bochs的调试界面使用info gdt来查看GDT内容，发现确实增加了三个描述符，他们分别是TSS描述符、用户代码段描述符和用户数据段描述符
+![](http://imgsrc.baidu.com/super/pic/item/4034970a304e251fbca6983ee286c9177e3e53a6.jpg)
+
+## 0x02 实现用户进程
+上回我们构建了初始的TSS，现在我们来了解一下用户进程的知识。
+我们的进程是基于线程来实现的,所以我们的进程同样需要PCB，这里我们需要到thread.h中修改一下我们PCB的内容，其中在task_struct结构体中添加一个咱们用户进程的虚拟地址池。
+```
+  struct virtual_addr userprog_vaddr;   //用户进程的虚拟地址
+```
+
+由于咱们创建的用户进程大多是时间是在特权级3工作，所以我们还必须为他构建出一个3级特权栈，并且不同的进程有着不同的页表，所以我们需要为他分配一些内存，这里我们到memory.c中新增一些代码：
+```
+/* 在用户空间申请4K内存，并返回其虚拟地址 */
+void* get_user_pages(uint32_t pg_cnt){
+  lock_acquire(&user_pool.lock);
+  void* vaddr = malloc_page(PF_USER, pg_cnt);
+  memset(vaddr, 0, pg_cnt * PG_SIZE);
+  lock_release(&user_pool.lock);
+  return vaddr;
+}
+
+/* 将地址vaddr与pf池中的物理地址关联，仅支持一页空间分配,这里是咱们自己选择一块虚拟地址进行分配 */
+void* get_a_page(enum pool_flags pf, uint32_t vaddr){
+  struct pool* mem_pool = pf & PF_KERNEL ? &kernel_pool : &user_pool;
+  lock_acquire(&mem_pool->lock);
+
+  /* 先将虚拟地址对应的位图置1 */
+  struct task_struct* cur = running_thread();
+  int32_t bit_idx = -1;
+  /* 若当前是用户进程申请用户内存，就修改用户进程自己的虚拟地址位图 */
+  if(cur->pgdir != NULL && pf == PF_USER){
+    bit_idx = (vaddr - cur->userprog_vaddr.vaddr_start)/PG_SIZE;
+    ASSERT(bit_idx > 0);
+    bitmap_set(&cur->userprog_vaddr.vaddr_bitmap, bit_idx, 1);
+  }else if(cur->pgdir == NULL && pf == PF_KERNEL){
+    /* 如果当前是内核线程申请内核内存，则修改kernel_vaddr */
+    bit_idx = (vaddr - kernel_vaddr.vaddr_start)/PG_SIZE;
+    ASSERT(bit_idx > 0);
+    bitmap_set(&kernel_vaddr.vaddr_bitmap, bit_idx, 1);
+  }else{
+    PANIC("get_a_page:not allow kernel alloc userspace or user alloc kernelspace by get_a_page");
+  }
+
+  void* page_phyaddr = palloc(mem_pool);
+  if(page_phyaddr == NULL){
+    return NULL;
+  }
+  page_table_add((void*)vaddr, page_phyaddr);
+  lock_release(&mem_pool->lock);
+  return (void*)vaddr;
+}
+
+/* 得到虚拟地址映射到的物理地址 */
+uint32_t addr_v2p(uint32_t vaddr){
+  uint32_t* pte = pte_ptr(vaddr);
+  /* (*pte)的值是页表所在的物理页框的地址，
+   * 去掉其低12位的页表项属性 + 虚拟地址vaddr的低12位*/
+  return ((*pte & 0xfffff000) + (vaddr & 0x00000fff));
+}
+
+```
+
+这里我贴上了几个本次实现的关键函数，大家之前一起写过memory.c的会感觉到并不是很难，完整源码还是放github上了，放这里太长。
+现在我们已经添加了一些实现用户内存池的管理函数，现在我们需要实现的就是让咱们的处理器从特权级0降级到特权级3,这里我们之前强调过很多次从高特权级到低特权级只有一种方法那就是iretd指令。
+大家知道从中断返回的时候会使用iretd指令，而他会将栈中的数据作为返回地址,所以咱们就需要伪装成中断返回的过程，然后就可以实现高到低了。
+当我们中断返回之后CPU是如何知道要进入哪个特权级呢，那就是看弹出的CS中选择子的RPL，所以说我们在栈上面先伪造一系列寄存器的值，这里注意要保证其中对应的CS选择子的RPL需要为3,然后使用iretd指令弹出相应的寄存器的值，这样CPU就会以为你是中断返回然后查看CS的选择子RPL发现你是低特权级，然后就将该RPL设置为CPL。而任务之所以能进入中断，那是因为eflags寄存器中的IF位为1,退出“中断”后，还需要保持他为1继续响应中断。还有一点就是既然我们已经到达了特权级3,此时我们只能访问特权级3的代码段和数据段，所以我们的段寄存器的选择子必须指向DPL为3的内存段，这些段我们刚刚在上面已经实现了。
+最后一点，那就是用户是最低特权级的存在，所以不允许用户直接访问硬件，因此eflags中的IOPL位必须为0。
+
+## 0x03 进程切换处理
+废话不必多说，我们立刻开始实现，先提一嘴，那就是咱们的进程是基于线程的，所以我们需要先创建线程，然后通过该线程创建进程,首先我们先来添加一点eflags寄存器的标志，他是添加在global.h中
+```
+efine EFLAGS_MBS  (1<<1)  //此项必须设置
+#define EFLAGS_IF_1     (1<<9)  //if为1,开中断
+#define EFLAGS_IF_0     0   //if为0,关中断
+#define EFLAGS_IOPL_3   (3<<12)     //IOPL3,用于测试用户在非系统调用下进行IO
+#define EFLAGS_IOPL_0   (0<<12)     //IOPL0
+#define DIV_ROUND_UP(X, STEP) ((X + STEP - 1) / (STEP))
+
+```
+#include "process.h"
 #include "debug.h"
 #include "global.h"
-#include "interrupt.h"
-
-/* 初始化信号量 */
-void sema_init(struct semaphore* psema, uint8_t value){
-  psema->value = value;     //信号量赋予初值
-  list_init(&psema->waiters);   //初始化信号量的等待队列
-}
-
-/* 初始化锁plock */
-void lock_init(struct lock* plock){
-  plock->holder = NULL;
-  plock->holder_repeat_nr = 0;
-  sema_init(&plock->semaphore, 1);
-}
-
-/* 信号量down操作 */
-void sema_down(struct semaphore* psema){
-  /* 关中断来保证原子操作 */
-  enum task_status old_status = intr_disable();
-  while(psema->value == 0){         //使用while是因为被唤醒后仍需要继续竞争条件，而不是直接向下执行
-    ASSERT(!elem_find(&psema->waiters, &running_thread()->general_tag));    //当前线程不应该已在等待队列当中
-    if(elem_fine(&psema->waiters, &running_thread()->general_tag)){
-      PANIC("sema_down: thread blocked has been in waiters_list\n");
-    }
-    /* 若信号量的值等于0,则将自己加入该锁的等待队列中，然后阻塞自己 */
-    list_append(&psema->waiters, &running_thread()->general_tag);
-    thread_block(TASK_BLOCKED);     //阻塞自己，直到被唤醒,这里会调度别的线程，所以不必担心关中断
-  }
-  /* 若value为1或被唤醒之后，会执行下面代码，也就是获得了锁 */
-  psema->value--;
-  ASSERT(psema->value == 0);
-  /* 恢复之前的中断状态 */
-  intr_set_status(old_status);
-}
-
-/* 信号量的up操作 */
-void sema_up(struct semaphore* psema){
-  /* 关中断来保证原子操作 */
-  enum task_status old_status = intr_disable();
-  ASSERT(psema->value == 0);
-  if(!list_empty(&psema->waiters)){
-    struct task_struct* thread_blocked = elem2entry(struct task_struct, general_tag, list_pop(&psema->waiters));
-    thread_unblock(thread_blocked);
-  }
-  psema->value++;
-  ASSERT(psema->value == 1);
-  /* 恢复之前的状态 */
-  intr_set_status(old_status);
-}
-
-/* 获取锁plock */
-void lock_acquire(struct lock* plock){
-  /* 排除曾经自己已经持有锁但还未将其释放的状态 */
-  if(plock->holder != running_thread()){
-    sema_down(&plock->semaphore);   //对信号量P操作
-    plock->holder = running_thread();
-    ASSERT(plock->holder_repeat_nr == 0);
-    plock->holder_repeat_nr = 1;
-  }else{
-    plock->holder_repeat_nr++;
-  }
-}
-
-/* 释放锁plock */
-void lock_release(struct lock* plock){
-  ASSERT(plock->holder == running_thread());
-  if(plock->holder_repeat_nr > 1){
-    plock->holder_repeat_nr--;
-    return ;
-  }
-  ASSERT(plock->holder_repeat_nr == 1);
-  plock->holder = NULL;     //把锁的持有者置空放在V操作之前
-  plock->holder_repeat_nr = 0;
-  sema_up(&plock->semaphore);   //对信号量V操作
-}
-```
-
-这里代码的具体含义就是定义了获取锁和释放锁，而对锁的操作中包含着对信号量的操作，然后在其中进行阻塞和接触阻塞功能,这样我们就完成了锁的实现工作。
-
-## 0x02 使用锁实现终端输出
-大家可能都听说过tty，也就是虚拟终端，我们可以通过ALT+F1等操作来切换不同的控制终端。我们本节所要实现的终端其实也就是一个输出设备，在这里我们使用锁来将其输出变得整齐点。
-首先是device/console.c文件了:
-```
+#include "thread.h"
+#include "memory.h"
 #include "console.h"
-#include "print.h"
-#include "stdint.h"
-#include "sync.h"
-#include "thread.h"
+#include "bitmap.h"
 
-static struct lock console_lock;    //控制台锁
+extern void intr_exit(void);    //kernel.S中的中断返回函数
 
-/* 初始化终端 */
-void console_init(){
-  lock_init(console_lock);
+/* 构建用户进程初始上下文信息,伪造中断返回的假象 */
+void start_process(void* filename_){
+  void* function = filename_;
+  struct task_struct* cur = running_thread();
+  cur->self_kstack += sizeof(struct thread_stack);      //使得其指向中断栈
+  struct intr_stack* proc_stack = (struct intr_stack*)cur->self_kstack;
+  proc_stack->edi = proc_stack->esi = proc_stack->ebp = proc_stack->esp_dummy = 0;
+  proc_stack->ebx = proc_stack->edx = proc_stack->ecx = proc_stack->eax = 0;
+  proc_stack->gs = 0;                                   //不允许用户进程直接访问显存段，所以置0
+  proc_stack->ds = proc_stack->es = proc_stack->fs = SELECTOR_U_DATA;
+  proc_stack->eip = function;
+  proc_stack->cs = SELECTOR_U_CODE;
+  proc_stack->eflags = (EFLAGS_IOPL_0 | EFLAGS_MBS | EFLAGS_IF_1);
+  proc_stack->esp = (void*)((uint32_t)get_a_page(PF_USER, USER_STACK3_VADDR) + PG_SIZE); //分配的是用户栈的最高地址处，也就是0xc0000000
+  proc_stack->ss = SELECTOR_U_DATA;
+  asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g"(proc_stack) : "memory");
 }
 
-/* 获取终端 */
-void console_acquire(){
-  lock_acquire(&console_lock);
+/* 激活页表 */
+void page_dir_activate(struct task_struct* p_thread){
+  /******************************************************
+   * 执行此函数时当前任务可能是线程 
+   * 之所以对线程也要重新安装页表，原因是上一次被调度的可能是进程，
+   * 否则不恢复页表的话，线程就会使用进程的页表了 
+   * ****************************************************/
+  /* 若为内核线程，需要重新填充页表为0x100000 */
+  uint32_t pagedir_phy_addr = 0x100000;      //默认为内核的页目录物理地址，也就是内核线程所用的页目录表
+  if(p_thread->pgdir != NULL){              //用户态进程有自己的页目录表
+    pagedir_phy_addr = addr_v2p((uint32_t)p_thread->pgdir);
+  }
+  /* 更新页目录寄存器cr3，使页表生效 */
+  asm volatile ("movl %0, %%cr3" : : "r"(pagedir_phy_addr) : "memory");
 }
 
-/* 释放终端 */
-void console_release(){
-  lock_release(&console_lock);
+/* 激活线程或进程的页表，更新tss中的esp0为进程的特权级0的栈 */
+void process_activate(struct task_struct* p_thread){
+  ASSERT(p_thread != NULL);
+  /* 激活该进程或线程的页表 */
+  page_dir_activate(p_thread);
+  /* 内核线程特权级本身为0,处理器进入中断时并不会从tss中获取0特权级栈地址，因此不需要更新esp0 */
+  if(p_thread->pgdir){
+    /* 更新该进程的esp0, 用于此进程被中断时保护上下文 */
+    update_tss_esp(p_thread);
+  }
 }
 
-/* 终端输出字符串 */
-void console_put_str(char* str){
-  console_acquire();
-  put_str(str);
-  console_release();
+/* 创建页目录表，将当前页表的表示内核空间的pde复制，
+ * 若成功则返回页目录的虚拟地址，否则返回-1 */
+uint32_t* create_page_dir(void){
+  /* 用户进程的页表不能让用户直接访问到，所以在内核空间来申请 */
+  uint32_t* page_dir_vaddr = get_kernel_pages(1);
+  if(page_dir_vaddr == NULL){
+    console_put_str("create_page_dir : get_kernel_page failed!");
+    return NULL;
+  }
+  /**************************** 1 先复制页表 ******************************/
+  /* page_dir_vaddr + 0x300*4是内核页目录的第768项 */
+  memcpy((uint32_t*)((uint32_t)page_dir_vaddr + 0x300*4),(uint32_t*)(0xfffff000 + 0x300*4), 1024);  //所有用户进程共享这1GB的内核空间，所以咱们直接复制内核页表
+  /************************************************************************/
+  /*************************** 2 更新页目录地址 *******************************/
+  uint32_t new_page_dir_phy_addr = addr_v2p((uint32_t)page_dir_vaddr);      //咱们创建的页表仍在内核当中，所以这里我们不需要关心映射问题
+  /* 页目录地址是存入在页目录的最后一项，更新页目录地址为新页目录的物理地址 */
+  pagedir_phy_addr[1023] = new_page_dir_phy_addr | PG_US_U | PG_RW_W | PG_P_1; //这里是补充页目录项的标识
+  /****************************************************************************/
+  return page_dir_vaddr;
 }
 
-/* 终端输出字符 */
-void console_put_char(uint8_t char_asci){
-  console_acquire();
-  put_char(char_asci);
-  console_release();
+/* 创建用户进程虚拟地址位图 */
+void create_user_vaddr_bitmap(struct task_struct* user_prog){
+  user_prog->userprog_vaddr.vaddr_start = USER_VADDR_START;     //咱定义为0x804800
+  uint32_t bitmap_pg_cnt = DIV_ROUND_UP((0xc0000000 - USER_VADDR_START)/PG_SIZE/8, PG_SIZE);    //这里是计算得到位图所需要的最小页面数
+  user_prog->userprog_vaddr.vaddr_bitmap.bits = get_kernel_pages(bitmap_pg_cnt);         //用户位图同样存放在内核空间
+  user_prog->userprog_vaddr.vaddr_bitmap.btmp_bytes_len = (0xc0000000 - USER_VADDR_START)/PG_SIZE/8;
+  bitmap_init(&user_prog->userprog_vaddr.vaddr_bitmap);         //初始化用户位图
 }
 
-/* 终端输出十六进制整数 */
-void console_put_int(uint32_t num){
-  console_acquire();
-  put_int(num);
-  console_release();
+/* 创建用户进程 */
+void process_execute(void* filename, char* name){
+  /* pcb内核的数据结构，由内核来维护进程信息，因此要在内核内存池中申请 */
+  struct task_struct* thread = get_kernel_pages(1);             //获取PCB空间
+  init_thread(thread, name, default_prio);                      //初始化我们创造的PCB空间
+  create_user_vaddr_bitmap(thread);                             //构建位图，并且写入咱们的PCB
+  thread_create(thread, start_process, filename);               //这里预留出中断栈和线程栈，然后将还原后的eip指针指向start_process(filename);
+  thread->pgdir = create_page_dir();                            //新建用户页目录并且返回页目录首地址
+
+  enum intr_status old_status = intr_disable();
+  ASSERT(!elem_find(&thread_ready_list, &thread->general_tag));
+  list_append(&thread_ready_list, &thread->general_tag);
+  ASSERT(!elem_find(&thread_all_list, &thread->all_list_tag));
+  list_append(&thread_all_list, &thread->all_list_tag);
+  intr_set_status(old_status);
 }
+
 
 ```
 
-这里大家也可以直观的看到他其实就是封装了我们的锁处理而已，此时我们再将其初始化操作放入init.c中,然后我们的main函数进行输出的时候就是用console_put_str等函数即可，此时是他内部帮咱们实现了互斥机制，我们上机实现一下发现确实正确无误。
-![](http://imgsrc.baidu.com/super/pic/item/0dd7912397dda144aaaa7974f7b7d0a20df48650.jpg)
-但是这里我的gcc9.4编译的话还是会有GP问题，这里我就直接同作者的环境保持一致使用gcc4.4编译发现一遍过，建议大家也保持环境一致。
-
-## 0x03 从键盘获取输入
-我们上面已经实现了正常的多线程输出，但我们今天的工作还有输入，所以我们需要稍微了解一下键盘输入的过程，这里我简单讲解一下，我们的键盘内部存在着一个叫做键盘编码器的芯片，这个芯片实际上就是向键盘控制器报告哪个建被按下，按键是否弹起，通常是Intel 8048或兼容芯片，而键盘控制器一般位于主板，通常是Intel 8042或兼容芯片.具体结构如下图：
-![](http://imgsrc.baidu.com/super/pic/item/bf096b63f6246b60eecea6b2aef81a4c500fa230.jpg)
-
-也就是当我们键盘按键的时候，8048会维护一个键值对的表，我们所按的键对应的扫描码会传给8042芯片，然后8042向8259A发送中断信号，这样处理器就会去执行键盘中断处理程序。而这个中断处理程序就是由我们自己实现。
-这里的扫描码又分为两类，一个是叫做通码，指的是按下按键产生的扫描码，还一个是断码，指的是松开按键产生的扫描码。
-由于我们根据不同的编码方案，键盘扫描码分为三类（注意这里并不是指ASCII码，而是单指标识没一个键的码，就比如说空格的ASCII码是0x20,但是扫描码却是0x39，我们中断处理程序就是要将扫描码转化为ASCII码进行输出），这里我们规定使用第一类，但是如果说咱们的键盘使用的是第二类或第三类怎么办呢，这个也并不需要我们关心，因为8042存在的意义之一就是兼容这三套方案，也就是说即使我们键盘是第二类方案，他也会转换为第一类方案进行信号传递。
-下面就是第一套键盘扫描码：
-![](http://imgsrc.baidu.com/super/pic/item/4e4a20a4462309f7454bbad4370e0cf3d6cad6d4.jpg)
-![](http://imgsrc.baidu.com/super/pic/item/0824ab18972bd4074fe7c43b3e899e510eb309d7.jpg)
-![](http://imgsrc.baidu.com/super/pic/item/7a899e510fb30f24c286fbc58d95d143ac4b03d3.jpg)
-![](http://imgsrc.baidu.com/super/pic/item/5366d0160924ab18ef0ff6f170fae6cd7a890bde.jpg)
-
-我们可以观察到一般通码和断码都是1字节大小，且断码 = 通码 + 0x80， 这里是因为一般咱们的扫描码的最高1位用来标识是通码还是断码，若是0则表示通码，为1则表示断码。
-为了让我们可以获取击键的过程，我们将每一次击键过程分为“按下”，“按下保持”，“弹起”三个阶段，其中每次8048向8042发送扫描码的时候，8042都会向8059A发起中断并且将扫描码保存在自己的缓冲区中，此时再调用我们准备好的键盘中断处理程序，从8042缓冲区获得传递来的扫描码。
-下面给出第一套扫描码的更加直观图：
-![](http://imgsrc.baidu.com/super/pic/item/503d269759ee3d6d983c900d06166d224e4ade7a.jpg)
+其中的start_process(filename_)就是我们想要最后运行的程序，这里我们首先将栈抬高到intr_stack,这里大伙是否还记得我们在线程初始化的时候首先构造了两个栈，一个是intr_stack，用来存放从本线程到中断例程的环境，还有一个是thread_stack，他是用来存放中断处理程序过程中任务切换的上下文信息.
+上面的代码注释已经很清楚了，但这里我来给大家梳理一下进程创建的过程，首先咱们运行一个线程，这里大家都清楚。
+1, 线程调用process_execute，首先重新获取一个PCB，然后对其初始化，再调用create_user_vaddr_bitmap来创建用户位图，之后通过thread_create来处理一些进程的栈，然后将kernel_thread最终指向start_process(filename)函数，再获取一个内核页目录，这个页目录会作为用户单独的页目录，这里注意每个用户页目录项都是不同的，但是每个用户进程都共享同一个内核页目录，如下：
+![](http://imgsrc.baidu.com/super/pic/item/d000baa1cd11728b68b1ebe48dfcc3cec2fd2c53.jpg)
+所以我们在内核空间创建一个单独的用户页目录表，然后在其中通过复制内核页目录表对应的内核页目录项来实现各进程共享，最后再设置咱们进程的pgdir以此证明他是个进程而不是线程（线程的该值为NULL）。
+在我们初始化完成之后再将其加入就绪队列和全部队列，然后处理器就可以调用进程执行了。
 
 ---
-说完一些键盘的基本知识，我们现在来简单介绍一下8042,他本身比较简单，我们只使用了他的一个端口接收扫描码而已，他有4个8位寄存器，如下：
-![](http://imgsrc.baidu.com/super/pic/item/0b46f21fbe096b6329f3499649338744eaf8ac0a.jpg)
-四个寄存器共用两个端口，说明在不同场合下同一个端口有不同的作用，这里咱们已经熟门熟路了应该，这里图上面表示的很清楚，也就是当CPU读0x64的时候，这个端口反映的是状态寄存器，反映了8048的工作状态，而当CPU向0x64端口写入的时候则表明了即将发给8048的一些控制命令，而0x60端口则分别是写入和读出扫描码而已。这里我们主要介绍一下0x64端口：
-状态寄存器，只读：
-+ 0：为1表示输出缓冲区寄存器已满，处理器通过in指令后自动置0
-+ 1：为1表示输入缓冲区寄存器已满，8042将值读取后该位自动为0
-+ 2：系统标志位，最初加点为0,自检通过后置为1
-+ 3：为1表示输入缓冲区中的是命令，为0则表示是普通数据
-+ 4：为1表示键盘启动，为0表示禁用
-+ 5：为1则表示发送超时
-+ 6：为1表示接收超时
-+ 7：来自8048的数据在奇偶校验时出错
-
-控制寄存器，只写：
-+ 0：为1表示启用键盘中断
-+ 1：为1启用鼠标中断
-+ 2：设置状态寄存器的位2
-+ 3：为1表示状态寄存器的位4无效
-+ 4：为1表示禁止键盘
-+ 5：为1禁止鼠标
-+ 6：将第二套转为第一套扫描码
-+ 7：默认为0
-
-介绍完基本端口信息后我们就开始实战，首先我们将kernel.S中的8259A中断控制器的其他引脚IRQ补充完整:
+当我们已经准备好了进程，现在是时候对他进行调度了，所以我们需要修改一下thread.c中的调度器schedule()函数：
 ```
-VECTOR 0x20,ZERO            ;时钟中断
-VECTOR 0x21,ZERO            ;键盘中断
-VECTOR 0x22,ZERO            ;级联从片
-VECTOR 0x23,ZERO            ;串口2对应入口
-VECTOR 0x24,ZERO            ;串口1对应入口
-VECTOR 0x25,ZERO            ;并口2对应入口
-VECTOR 0x26,ZERO            ;软盘对应入口
-VECTOR 0x27,ZERO            ;并口1对应入口
-VECTOR 0x28,ZERO            ;实时时钟中断对应入口
-VECTOR 0x29,ZERO            ;重定向
-VECTOR 0x2a,ZERO            ;保留
-VECTOR 0x2b,ZERO            ;保留
-VECTOR 0x2c,ZERO            ;ps/2鼠标
-VECTOR 0x2d,ZERO            ;fpu浮点单元异常
-VECTOR 0x2e,ZERO            ;硬盘
-VECTOR 0x2f,ZERO            ;保留
-```
-
-这里我们为了简单方便，我们首先将时钟中断关闭转而开启键盘中断，当然这里我们需要修改interrupt.c文件，注意其中的支持的中断数也需要修改：
-```
-/* 初始化可编程中断控制器 */
-static void pic_init(void){
-  /* 初始化主片 */
-  outb(PIC_M_CTRL, 0x11);           //ICW1:边沿触发，级联8259,需要ICW4
-  outb(PIC_M_DATA, 0x20);           //ICW2:起始中断向量号为0x20,也就是IRQ0的中断向量号为0x20
-  outb(PIC_M_DATA, 0x04);           //ICW3:设置IR2接从片
-  outb(PIC_M_DATA, 0x01);           //ICW4:8086模式，正常EOI，非缓冲模式，手动结束中断
-
-  /* 初始化从片 */
-  outb(PIC_S_CTRL, 0x11);           //ICW1:边沿触发，级联8259,需要ICW4
-  outb(PIC_S_DATA, 0x28);           //ICW2：起始中断向量号为0x28
-  outb(PIC_S_DATA, 0x02);           //ICW3:设置从片连接到主片的IR2引脚
-  outb(PIC_S_DATA, 0x01);           //ICW4:同上
-
-  /* 打开主片上的IR0,也就是目前只接受时钟产生的中断 */
-  outb(PIC_M_DATA, 0xfd);           //OCW1:IRQ0外全部屏蔽
-  outb(PIC_S_DATA, 0xff);           //OCW1:IRQ8~15全部屏蔽
-
-  put_str("     pic init done!\n");
-}
+  /* 激活任务页表等 */
+  process_activate(next);
 
 ```
-
-这里实际上也仅仅是修改了初始化而已，而我们将可支持的中断改为0x30，此时已经完全支持了8259A所支持的全部中断。然后我们开始编写device/keyboard.c，他是用来定义键盘中断处理程序的
-```
-#include "keyboard.h"
-#include "print.h"
-#include "interrupt.h"
-#include "io.h"
-#include "global.h"
-
-#define KBD_BUF_PORT 0x60
-
-/* 键盘中断处理程序 */
-static void intr_keyboard_handler(void){
-  put_char('k');
-  /* 必须要读取输出缓冲区寄存器，否则8042不再继续响应键盘中断 */
-  inb(KBD_BUF_PORT);
-  return;
-}
-
-/* 键盘初始化 */
-void keyboard_init(){
-  put_str("keyboard init start \n");
-  register_handler(0x21, intr_keyboard_handler);
-  put_str("keyboard init done \n");
-}
-
-```
-
-这里的中断处理程序十分简单，也就是接收键盘输入然后打印K字符，我们直接上bochs查看:
-
-![](http://imgsrc.baidu.com/super/pic/item/8718367adab44aed89d5a822f61c8701a08bfb59.jpg)
-图片可能看不太明白，但是确实实现了键盘中断，当我任意按键的时候，屏幕会输出字符’k‘,但是你如果尝试了会发现为啥我按一个键他出来两个甚至好几个K呢，这是因为你按下跟弹出是两个中断，有的通码和断码各有2字节，此时你按下加弹出他会产生4次中断，也就是打印4个K。
-接下来我们改写一下中断处理程序，我们将其改为打印扫描码。
-```
-/* 键盘中断处理程序 */
-static void intr_keyboard_handler(void){
-  /* 必须要读取输出缓冲区寄存器，否则8042不再继续响应键盘中断 */
-  uint8_t scancode = inb(KBD_BUF_PORT);
-  put_int(scancode);
-  return;
-}
-
-```
-![](http://imgsrc.baidu.com/super/pic/item/03087bf40ad162d94f3574da54dfa9ec8b13cd19.jpg)
-这里我是按了一个A键，我们对比前面的第一套得出确实如此
-
-
-## 0x04 编写键盘驱动
-我们已经成功打印出来扫描码，但是我们输入并不是为了看扫描码而是那个扫描码对应的字符，所以这里我们的键盘驱动程序就是将扫描码转换为对应字符的过程。
-而对于转换过程其实也是写映射的过程，这个部分是程序给你固定住的映射关系，下面我们来进行实现：
-```
-/* 用转义字符定义一部分控制字符 */
-#define esc '\x1b'      //十六进制表示
-#define backspace '\b'
-#define tab     '\t'
-#define enter '\r'
-#define delete '\x7f'
-
-/* 以下不可见字符一律定义为0 */
-#define char_invisible 0
-#define ctrl_l_char char_invisible
-#define ctrl_r_char char_invisible
-#define shift_l_char char_invisible
-#define shift_r_char char_invisible
-#define alt_l_char char_invisible
-#define alt_r_char char_invisible
-#define caps_lock_char char_invisible
-
-/* 定义控制字符的通码和断码 */
-#define shift_l_make 0x2a
-#define shift_r_make 0x36
-#define alt_l_make 0x38
-#define alt_r_make 0xe038
-#define alt_r_break 0xe0b8
-#define ctrl_l_make  0x1d
-#define ctrl_r_make 0xe01d
-#define ctrl_r_break 0xe09d
-#define caps_lock_make 0x3a
-
-/* 定义以下变量来记录相应键是否按下的状态，
- * ext_scancode用于记录makecode是否以0xe0开头 */
-static bool ctrl_status, shift_status, alt_status, caps_lock_status, ext_scancode;
-
-/* 以通码make_code为索引的二维数组 */
-static char keymap[][2] = {
-  /* 扫描码未与shift组合 */
-  /* --------------------------------------------- */
-  /* 0x00 */    {0, 0},
-  /* 0x01 */    {esc, esc},
-  /* 0x02 */    {'1', '!'},
-  /* 0x03 */    {'2', '@'},
-  /* 0x04 */    {'3', '#'},
-  /* 0x05 */    {'4', '$'},
-  /* 0x06 */    {'5', '%'},
-  /* 0x07 */    {'6', '^'},
-  .......
-  /** 0x3A /
-
-```
-
-这里注意我们需要对照之前的表格来看，这是我们说好的目前所支持的主键盘区的按键范围，这里是分别搭配shift使用。我们定义了一些映射，接下来就是编写正式的键盘中断处理程序了。这里的逻辑也十分简单，不如我按下A键，他会产生通码0x1e，因此假如我按下A建前没有按下shift键，则他会访问keymap[0x1e][0],这样访问的就是'a',如果说按下了shift键，则访问的就会是keymap[0x1e][1]，这样就会处理'A'。
-接下来我们继续编写device/keyboard.c
-```
-/* 键盘中断处理程序 */
-static void intr_keyboard_handler(void){
-  /* 这次中断发生前的上一次中断，以下任意三个键是否有人按下 */
-  bool ctrl_down_last = ctrl_status;
-  bool shift_down_last = shift_status;
-  bool caps_lock_last = caps_lock_status;
-
-  bool break_code;
-  uint16_t scancode = inb(KBD_BUF_PORT);
-
-  /* 若扫描码scancode是e0开头的，表示此键的按下将产生多个扫描码，
-   * 所以马上结束此中断处理函数，等待下一个扫描码进入*/
-  if(scancode == 0xe0){
-    ext_scancode = true;    //打开e0标记
-    return;
-  }
-
-  /* 如果上次是以0xe0开头的，将扫描码合并 */
-  if(ext_scancode){
-    scancode = ((0xe000)|(scancode));
-    ext_scancode = false;   //关闭e0标记
-  }
-
-  break_code = ((scancode & 0x0080) != 0);  //获取breakcode，为false则表示是通码，为true则表示是断码
-  if(break_code){       //如果是断码breakcode(也就是弹起时产生)
-    /* 由于ctrl_r和alt_r的make_code和break_code都是两字节，所以可以用下面的方法取make_code，多字节的扫描码暂不处理 */
-    uint16_t make_code = (scancode &= 0xff7f);  //这里获取其通码
-
-    /* 如果以下任意三个键弹起了，将状态置为false */
-    if(make_code == ctrl_r_make || make_code == ctrl_l_make){
-      ctrl_status = false;
-    }else if(make_code == shift_r_make || make_code == shift_l_make){
-      shift_status = false;
-    }else if(make_code == alt_l_make || make_code == alt_r_make){
-      alt_status = false;
-    } /* 由于caps_lock不是弹起后关闭，所以需要单独处理 */
-    return;     //直接返回结束此次中断程序
-  }
-  /* 若为通码，只处理数组中定义的建以及alt_right和ctrl键，全是make_code */
-  else if((scancode > 0x00 && scancode < 0x3b)||(scancode == alt_r_make)||(scancode == ctrl_r_make)){
-    bool shift = false;     //判断是否与shift组合，用来在二维数组中索引对应的字符
-    if((scancode < 0x0e)||(scancode == 0x29)||(scancode == 0x1a)|| \
-        (scancode == 0x1B)||(scancode == 0x2B)||(scancode == 0x27)|| \
-        (scancode == 0x28)||(scancode == 0x33)||(scancode == 0x34)|| \
-        (scancode == 0x35)){
-      /********* 代表两个字母的键 *********
-       * 0x0e 数字0～9,字符-，字符=
-       * 0x29 字符`
-       * 0x1a 字符[
-       * 0x1b 字符]
-       * 0x2b 字符\\
-       * 0x27 字符;
-       * 0x28 字符\'
-       * 0x33 字符,
-       * 0x34 字符.
-       * 0x35 字符/
-       * **********************************/
-      if(shift_down_last){
-        shift = true;
-      }
-    }else{  //处理默认字母键
-      if(shift_down_last && caps_lock_last){    //如果shift和cpaslock同时按下
-        shift = false;
-      }else if(shift_down_last || caps_lock_last){
-        //如果shift和capslock任意被按下
-        shift = true;
-      }else{
-        shift = false;
-      }
-    }
-    uint8_t index = (scancode &= 0x00ff);
-    char cur_char = keymap[index][shift];   //在数组中寻找对应的字符
-    /* 只处理ASCII码不为0的键 */
-    if(cur_char){
-      put_char(cur_char);
-      return;
-    }
-    /* 记录本次是否按下了下面几类控制键之一，供下次键入的时候判断组合键 */
-    if(scancode == ctrl_l_make || scancode == ctrl_r_make){
-      ctrl_status = true;
-    }else if(scancode == shift_l_make || scancode == shift_r_make){
-      shift_status = true;
-    }else if(scancode == alt_l_make || scancode == alt_r_make){
-      alt_status = true;
-    }else if(scancode == caps_lock_make){
-      /* 不管之前是否有按下caps_lock键，当再次按下时状态取反 */
-      caps_lock_status = ! caps_lock_status;
-    }
-  }else{
-    put_str("unknown key\n");
-  }
-}
-
-```
-
-这里逻辑也是挺清楚的，然后我们开始编译链接，这里注意我们通过以下指令来将标准输出重定向到/dev/null，然后通过make hd来写入硬盘
-```
-make build 1>/dev/null
-make hd
-```
-
-
-这里注意一点就是静态变量在编译的时候会赋予初值0,所以一开始默认的控制状态码会是false，下面看看我们的运行成果
-![](http://imgsrc.baidu.com/super/pic/item/03087bf40ad162d94f3574da54dfa9ec8b13cd19.jpg)
-我都能在上面打颜文字了应该不必说了吧，大成功!
-
-## 0x05 环形输入缓冲区
-到目前为止，虽然咱们顺利接受了键盘按键，但其实除了输出这些字符并没有出现什么特别的功能，而我们实现键盘输入很大的一部分就是可以实现咱们的shell功能，这样咱们就可以键入指令然后实现咱们的需求了。
-缓冲区是多个线程共用的共享内存，线程并行访问的时候它难免会出问题，所以我们需要解决这个对于缓冲区的访问操作产生的问题。这里我稍微介绍一下我们即将要设计的环形缓冲区：
-从他的名字可以知道这个就是一个环形结构，事实上也确实如此，他很像咱们数据结构中学到的循环队列，如下图：
-![](http://imgsrc.baidu.com/super/pic/item/503d269759ee3d6dea20820d06166d224e4ade16.jpg)
-这里我们定义两个指针来指向其中的头和尾，但注意我们这里的环形是指逻辑上的环形，在物理内存上我们仍然是线性的，不过我们用以下方式来使得其从逻辑上来看是环形队列，那就是头指针用来写数据，尾指针用来读数据，这里跟我学的队列是相反的，我之前学的是头指针加1是用来读数据，而尾指针是用来写的，这里刚好反了，不过逻辑仍然一致，这里当我们指针位置加1导致越过了缓冲区范围的时候会进行取余来重新指向缓冲区的开头，这样就形成了环形的错觉。
-接下来我们将唤醒缓冲区定义在device/ioqueue.h 和 device/ioqueue.c中：
-首先是头文件
-```
-#ifndef __DEVICE_IOQUEUE_H
-#define __DEVICE_IOQUEUE_H
-#include "stdint.h"
-#include "thread.h"
-#include "sync.h"
-
-#define bufsize 64
-
-/* 环形队列 */
-struct ioqueue{
-  //生产者消费者
-  struct lock lock;     //本缓冲区的锁
-  /* 生产者，缓冲区不满的时候就继续往里面放数据
-   * 否则就睡眠，此项记录哪个生产者在此缓冲区上睡眠 */
-  struct task_struct* producer;
-
-  /* 消费者，缓冲区不空就从里面拿数据，
-   * 否则就睡眠，此项记录哪个消费者在此缓冲区上睡眠 */
-  struct task_struct* consumer;
-  char buf[bufsize];        //缓冲区大小
-  int32_t head;             //头指针，写
-  int32_t tail;             //尾指针，读
-};
-#endif
-```
-
-接着我们来正式实现ioqueue.c,如下：
-```
-#include "ioqueue.h"
-#include "interrupt.h"
-#include "global.h"
-#include "debug.h"
-
-/* 初始化io队列ioq */
-void ioqueue_init(struct ioqueue* ioq){
-  lock_init(&ioq->lock);    //初始化ioq的锁
-  ioq->producer = ioq->consumer = NULL;     //生产者消费者置空
-  ioq->head = ioq->tail = 0;    //队列的首尾地址指向缓冲区数组第0个位置
-}
-
-/* 返回pos在缓冲区的下一个位置值 */
-static int32_t next_pos(int32_t pos){
-  return (pos + 1)% bufsize;
-}
-
-/* 判断队列是否已满 */
-bool ioq_full(struct ioqueue* ioq){
-  ASSERT(intr_get_status() == INTR_OFF);
-  return next_pos(ioq->head) == ioq->tail;
-}
-
-/* 判断队列是否以空 */
-static bool ioq_empty(struct ioqueue* ioq){
-  ASSERT(intr_get_status() == INTR_OFF);
-  return ioq->head == ioq->tail;
-}
-
-/* 使当前生产者或消费者在缓冲区上等待 */
-static void ioq_wait(struct task_struct** waiter){
-  ASSERT(*waiter == NULL && waiter != NULL);
-  *waiter = running_thread();
-  thread_block(TASK_BLOCKED);
-}
-
-/* 唤醒waiter */
-static void wakeup(struct task_struct** waiter){
-  ASSERT(*waiter != NULL);
-  thread_unblock(*waiter);
-  *waiter = NULL;
-}
-
-/* 消费者从ioq队列中获取一个字符*/
-char ioq_getchar(struct ioqueue* ioq){
-  ASSERT(intr_get_status() == INTR_OFF);
-  /* 若缓冲区为空，把消费者ioq->consumer记为当前线程自己
-   * 目的是将来生产者往缓冲区里面装商品的时候，生产者知道唤醒哪个消费者
-   * 也就是幻想当前线程自己 */
-  while(ioq_empty(ioq)){
-    lock_acquire(&loq->lock);
-    ioq_wait(&ioq->consumer);
-    lock_release(&loq->lock);
-  }
-
-  char byte = ioq->buf[ioq->tail];      //从缓冲区取得一个字符
-  ioq->tail = next_pos(ioq->tail);      //把读游标移到下一个位置
-
-  if(ioq->producer != NULL){
-    wakeup(&ioq->producer);             //唤醒生产者
-  }
-  return byte;
-}
-
-/* 生产者从ioq队列中写入一个字符 */
-void ioq_putchar(struct ioqueue* ioq, char byte){
-  ASSERT(intr_get_status() == INTR_OFF);
-  /* 若缓冲区为满，把生产者ioq->producer记为自己，
-   * 目的和是当缓冲区里面的东西被消费者取完后让消费者知道唤醒哪个生产者，
-   * 也就是唤醒自己 */
-  while(ioq_full(ioq)){
-    lock_acquire(&ioq->lock);
-    loq_wait(&ioq->producer);
-    lock_release(&ioq->lock;)
-  }
-  ioq->buf[ioq->head] = byte;           //把字节放入缓冲区中
-  ioq->head = next_pos(ioq->head);      //把写游标移到下一个位置
-
-  if(ioq->consumer != NULL){
-    wakeup(&loq->consumer);             //唤醒消费者
-  }
-}
-
-```
-
-这里我们使用了生产者消费者模型，搭配了我们前面写的锁来实现互斥和同步，在每次我们对缓冲区进行操作的时候都需要进行关中断。然后我们在下面进行实战，这里我们需要注意目前咱们仅实现的是单一的生产者消费者的环境，也就是生产者是键盘驱动，消费者是将来的shell，所以本节要将在键盘驱动中处理的字符存入环形缓冲区当中。
-具体修改代码这里由于实在代码当中插入，所以比较难贴出来，因此我在这里就简单讲解一下，首先就是定义一个ioqueue队列，然后在我们输入的时候，首先输出到屏幕的同时也输入到对应的缓冲区，这里我们缓冲区大小为64字节，当我们将缓冲区输入满的时候继续输入就将阻塞自身线程等待消费者唤醒，但注意这里我们并没有构造出消费者，所以最终实现的效果应该就是我们输入了63个字节之后就无法输入了，我们看一下下面的效果
-
-![](http://imgsrc.baidu.com/super/pic/item/4ec2d5628535e5ddf651a21933c6a7efcf1b62f2.jpg)
-可以看到确实输入到最后三个字节ccc之后就无法输入了
-
----
-这里我们来演示生产者和消费者之间的协同工作，此时我们创建两个线程来作为消费者，让他们来从键盘缓冲区中消费数据，所以这里我们需要打开时钟中断，依旧是在interrupt.c中修改,也就是IRQ0位置为0,而由于键盘缓冲区是全局数据结构，所以他在生产者和消费者之间共享，因此在添加生产者消费者之前还要在keyboard.h中添加此缓冲区的声明，如下:
-```
-#ifndef __DEVICE_KEYBOARD_H
-#define __DEVICE_KEYBOARD_H
-void keyboard(void);
-extern struct ioqueue kbd_buf;
-#endif
-
-```
-
-然后我们来修改main函数
+只需要在咱们的switch_to函数前面加上这段激活代码即可，当我们查看该代码的时候我们会发现他的功能就是将相应的页目录表载入cr3,然后转到对应的特权级0的栈，下面我们就来测试一下用户进程,下面咱们修改main函数测试
 ```
 #include "print.h"
 #include "init.h"
 #include "thread.h"
 #include "interrupt.h"
 #include "console.h"
-#include "ioqueue.h"
-#include "keyboard.h"
+#include "process.h"
 
 void k_thread_a(void*);     //自定义线程函数
 void k_thread_b(void*);
+void u_prog_a(void);
+void u_prog_b(void);
+int test_var_a = 0, test_var_b = 0;
 
 int main(void){
   put_str("I am Kernel\n");
   init_all();
   thread_start("k_thread_a", 31, k_thread_a, " A_");
   thread_start("k_thread_b", 31, k_thread_b, " B_");
+  process_execute(u_prog_a, "user_prog_a");
+  process_execute(u_prog_b, "user_prog_b");
   intr_enable();
   while(1);//{
     //console_put_str("Main ");
@@ -772,34 +418,41 @@ int main(void){
 /* 在线程中运行的函数 */
 void k_thread_a(void* arg){
   /* 这里传递通用参数，这里被调用函数自己需要什么类型的就自己转换 */
+  char* para = arg;
   while(1){
-    enum intr_status old_status = intr_disable();
-    if(!ioq_empty(&kbd_buf)){
-      console_put_str(arg);
-      char byte = ioq_getchar(&kbd_buf);
-      console_put_char(byte);
-    }
-    intr_set_status(old_status);
+    console_put_str("v_a:0x");
+    console_put_int(test_var_a);
+    console_put_str("   ");
   }
 }
 void k_thread_b(void* arg){
   /* 这里传递通用参数，这里被调用函数自己需要什么类型的就自己转换 */
+  char* para = arg;
   while(1){
-    enum intr_status old_status = intr_disable();
-    if(!ioq_empty(&kbd_buf)){
-      console_put_str(arg);
-      char byte = ioq_getchar(&kbd_buf);
-      console_put_char(byte);
-    }
-    intr_set_status(old_status);
+    console_put_str("v_b:0x");
+    console_put_int(test_var_b);
+    console_put_str("   ");
+  }
+}
+
+void u_prog_a(void){
+  while(1){
+    test_var_a++ ;
+  }
+}
+
+void u_prog_b(void){
+  while(1){
+    test_var_b++ ;
   }
 }
 
 ```
 
-这里也就是简单的进行生产者消费者测试，效果应该是我们输入的字符会直接打入缓冲区，然后AB两个线程会争相从缓冲区中取出字符然后打印到屏幕，我们看看效果
-![](http://imgsrc.baidu.com/super/pic/item/8601a18b87d6277f018d35fe6d381f30e824fc5d.jpg)
-上面的图是我一直长按K建的效果，这样我就会不断出发键盘中断然后往缓冲区输入字符，这时候两个线程就会不断取出进行输出，从图片中来看确实实现了争相输出
+这里我们分别创建了两个线程函数和两个进程函数，这里创建线程是因为我们的用户进程现在无法使用显存，因为权限不够，所以这里我们的用户进程暂时只是将全局变量增加，然后使用内核线程进行输出，我们来看看效果
+![](http://imgsrc.baidu.com/super/pic/item/f703738da9773912dad6eaa7bd198618377ae200.jpg)
+这里我们可以看到确实是ab两个线程分别输出，且对应数字都在增加则表示咱们的两个进程也都正常切换了，这里进程的切换其实同线程十分类似，都是经过时钟中断然后执行调度函数schedule(),再通过激活对应线程或者进程的页表，如果是进程，他的PCB中pgdir不会为NULL,然后进行切换，否则就说明是线程，则没必要切换页表，然后就会跳转到对应的intr_exit函数进行还原中断前的状态。当我们第一次调用用户进程的时候，我们会执行其中的start_process(function)功能，此时我们在这里伪造了一系列值，其中最重要的莫过于cs了，其中选择子的RPL必须为特权级3,这样我们再返回intr_exit函数就可以实现高特权级到地特权及的转化，而在之后的切换我们本身的RPL就是3,所以不需要多余改变。
 
-## 0x06 总结
-本次比较常规，感觉对信号和锁的实现需要多思考思考，其中比较难想通的我觉得是阻塞和唤醒的时候的问题。对于lock的操作也需要多品味一下，之后的生产者和消费者在操作系统中算是比较经典了也很容易理解。
+## 0x04 总结
+大致来看进程线程区别不大，但是我们的进程是拥有了自己的页表，并且每个进程拥有独立的用户空间，共享同一个内核页表。这里tss中字段的使用倒没有很多，使用tss.c中的函数用来创建tss描述符和创建一些用户段。进程切换的时候调用其中的函数来获得其0级特权栈。代码易懂但是得细心琢磨，通过本次的学习对线程和进程之间的关系可以认识的更加透彻，包括以往的应试答案比如说“进程是资源分配的单位，线程是处理器分配的单位”等，综上，本次知识十分有用。
+
