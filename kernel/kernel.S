@@ -95,6 +95,32 @@ VECTOR 0x2d,ZERO            ;fpu浮点单元异常
 VECTOR 0x2e,ZERO            ;硬盘
 VECTOR 0x2f,ZERO            ;保留
 
+;;;;;;;;;;;;;;; 0x80号中断 ;;;;;;;;;;;;;;;;;
+[bits 32]
+extern syscall_table
+section .text
+global syscall_handler
+syscall_handler:
+;1 保存上下文环境
+  push 0    ;压入0,使得栈中格式统一
+  push ds
+  push es
+  push fs
+  push gs
+  pushad    ;PUSHAD压入8个寄存器，类似上面的中断函数例程
+  push 0x80     ;同样为了保持统一的栈格式
 
+;2 为系统调用子功能传入参数
+  push edx  ;第3个参数，下面依次递减
+  push ecx  
+  push ebx
 
+;3 调用子功能处理函数
+  call [syscall_table + eax*4]
+  add esp, 12   ;跨过上面的三个参数
+
+;4 将call调用后的返回值存入当前内核栈中的eax的位置
+  mov [esp + 8*4], eax
+  jmp intr_exit     ;恢复上下文
+  
 

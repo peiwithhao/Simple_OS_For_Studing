@@ -9,7 +9,7 @@
 #define PIC_S_CTRL 0xA0             //从片控制端口
 #define PIC_S_DATA 0xA1             //从片数据端口
 
-#define IDT_DESC_CNT 0x30           //目前总支持的中断数
+#define IDT_DESC_CNT 0x81           //目前总支持的中断数
 
 #define EFLAGS_IF 0x00000200        //eflags寄存器中的if位为1
 #define GET_EFLAGS(EFLAG_VAR) asm volatile("pushfl; pop %0" : "=g" (EFLAG_VAR))   //pushfl是指将eflags寄存器值压入栈顶
@@ -32,6 +32,7 @@ char* intr_name[IDT_DESC_CNT];              //用于保存异常的名字，这�
 intr_handler idt_table[IDT_DESC_CNT];       //定义中断处理程序地址数组
 
 extern intr_handler intr_entry_table[IDT_DESC_CNT];     //声明引用在kernel.S中的中断处理函数入口数组
+extern uint32_t syscall_handler(void);              //单独的系统调用中断处理函数例程
 
 /* 初始化可编程中断控制器 */
 static void pic_init(void){
@@ -65,10 +66,14 @@ static void make_idt_desc(struct gate_desc* p_gdesc, uint8_t attr, intr_handler 
 
 /*初始化中断描述符表*/
 static void idt_desc_init(void){
-  int i;
+  int i, lastindex = IDT_DESC_CNT -1;
   for(i = 0;i < IDT_DESC_CNT; i++){
     make_idt_desc(&idt[i],IDT_DESC_ATTR_DPL0, intr_entry_table[i]);
   }
+
+  /* 单独处理系统调用，因为这里要使得用户能直接使用，所以系统调用对应的中断门dpl应为3,
+   * 中断处理程序为单独的syscall_handler*/
+  make_idt_desc(&idt[lastindex], IDT_DESC_ATTR_DPL3, syscall_handler);
   put_str("  idt_desc_init_done!\n");
 }
 

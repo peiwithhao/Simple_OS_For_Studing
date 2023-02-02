@@ -8,13 +8,24 @@
 #include "debug.h"
 #include "print.h"
 #include "process.h"
+#include "sync.h"
 
 struct task_struct* main_thread;    //主线程PCB
 struct list thread_ready_list;      //就绪队列
 struct list thread_all_list;        //所有任务队列
 static struct list_elem* thread_tag;    //用于保存队列中的线程结点
+struct lock pid_lock;       //分配pid锁
 
 extern void switch_to(struct task_struct* cur, struct task_struct* next);
+
+/* 分配pid */
+static pid_t allocate_pid(void){
+  static pid_t next_pid = 0;        //静态局部变量，相似于全局变量，所以这里函数结束后并不会消失
+  lock_acquire(&pid_lock);
+  next_pid++;
+  lock_release(&pid_lock);
+  return next_pid;
+}
 
 /* 获取当前线程PCB指针 */
 struct task_struct* running_thread(){
@@ -49,6 +60,7 @@ void thread_create(struct task_struct* pthread, thread_func function, void* func
 /* 初始化线程基本信息 */
 void init_thread(struct task_struct* pthread, char* name, int prio){
   memset(pthread, 0, sizeof(*pthread));
+  pthread->pid = allocate_pid();
   strcpy(pthread->name, name);
   if(pthread == main_thread){
     /* 由于把main函数也封装成一个线程，并且他是一直运行的，故将其直接设为TASK_RUNNING*/
@@ -161,6 +173,7 @@ void thread_init(void){
   put_str("thread_init start\n");
   list_init(&thread_ready_list);
   list_init(&thread_all_list);
+  lock_init(&pid_lock);
   /* 将当前main函数创建为线程 */
   make_main_thread();
   put_str("thread_init done\n");
