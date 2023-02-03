@@ -96,6 +96,7 @@ void process_execute(void* filename, char* name){
   create_user_vaddr_bitmap(thread);                             //构建位图，并且写入咱们的PCB
   thread_create(thread, start_process, filename);               //这里预留出中断栈和线程栈，然后将还原后的eip指针指向start_process(filename);
   thread->pgdir = create_page_dir();                            //新建用户页目录并且返回页目录首地址
+  block_desc_init(thread->u_block_desc);                        //初始化用户自己的内存管理描述符
 
   enum intr_status old_status = intr_disable();
   ASSERT(!elem_find(&thread_ready_list, &thread->general_tag));

@@ -52,3 +52,18 @@
 uint32_t getpid(){
   return _syscall0(SYS_GETPID);
 }
+
+/* 系统调用write */
+uint32_t write(char* str){
+  return _syscall1(SYS_WRITE, str);
+}
+
+/* 系统调用malloc */
+void* malloc(uint32_t size){
+  return (void*)_syscall1(SYS_MALLOC, size);
+}
+
+/* 系统调用free */
+void free(void* ptr){
+  _syscall1(SYS_FREE, ptr);
+}

@@ -1,5 +1,5 @@
-#ifndef __USERPROG_H
-#define __USERPROG_H
+#ifndef __USERPROG_PROCESS_H
+#define __USERPROG_PROCESS_H
 #include "thread.h"
 #include "stdint.h"
 #define USER_STACK3_VADDR (0xc0000000 - 0x1000)
