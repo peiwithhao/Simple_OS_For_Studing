@@ -23,7 +23,7 @@ int main(void){
   process_execute(u_prog_b, "u_prog_b");
   thread_start("k_thread_a", 31, k_thread_a, " A_");
   thread_start("k_thread_b", 31, k_thread_b, " B_");
-  while(1);//{
+ while(1);//{
     //console_put_str("Main ");
   //};
   return 0;

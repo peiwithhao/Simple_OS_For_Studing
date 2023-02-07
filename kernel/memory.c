@@ -56,7 +56,7 @@ static void* vaddr_get(enum pool_flags pf, uint32_t pg_cnt){
       return NULL;
     }
     while(cnt < pg_cnt){
-      bitmap_set(&kernel_vaddr.vaddr_bitmap, bit_idx_start + cnt++, 1);
+      bitmap_set(&kernel_vaddr.vaddr_bitmap, bit_idx_start + (cnt++), 1);
     }
     vaddr_start = kernel_vaddr.vaddr_start + bit_idx_start * PG_SIZE;
   }else{
@@ -109,7 +109,6 @@ static void page_table_add(void* _vaddr, void* _page_phyaddr){
   uint32_t vaddr = (uint32_t)_vaddr,page_phyaddr = (uint32_t)_page_phyaddr;
   uint32_t* pde = pde_ptr(vaddr);
   uint32_t* pte = pte_ptr(vaddr);
-
 /******************************** 注意 **********************************
  * 执行*pte会访问到空的pde，所以确保pde创建完成后才能执行*pte,
  * 否则会引发page_fault。因此在*pde为0的时候，*pte只能出现在下面else语句块中的*pde后面
@@ -122,7 +121,6 @@ static void page_table_add(void* _vaddr, void* _page_phyaddr){
       *pte = (page_phyaddr | PG_US_U | PG_RW_W | PG_P_1);
     }else{
       PANIC("pte repeat");      //ASSERT的内置函数
-      *pte = (page_phyaddr | PG_US_U | PG_RW_W | PG_P_1);
     }
   }else{
     //页目录项不存在，所以需要先创建页目录再创建页表项
@@ -149,11 +147,12 @@ void* malloc_page(enum pool_flags pf, uint32_t pg_cnt){
    * 3. 通过page_table_add将以上得到的虚拟地址和物理地址在页表中完成映射
    * ********************************************************************/
   void* vaddr_start = vaddr_get(pf,pg_cnt);
+
   if(vaddr_start == NULL){
     return NULL;
   }
 
-  uint32_t vaddr = (uint32_t)vaddr_start,cnt = pg_cnt;
+  uint32_t vaddr = (uint32_t)vaddr_start, cnt = pg_cnt;
   struct pool* mem_pool = pf & PF_KERNEL ? &kernel_pool : &user_pool;
 
   /* 这里是因为虚拟地址是连续的，而物理地址不连续，所以逐个映射 */

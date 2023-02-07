@@ -1,7 +1,7 @@
 #ifndef __KERNEL_GLOBAL_H
 #define __KERNEL_GLOBAL_H
 #include "stdint.h"
-typedef int bool;
+#define bool int
 #define true 1
 #define false 0
 #define NULL ((void*)0)

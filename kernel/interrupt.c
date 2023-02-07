@@ -78,7 +78,7 @@ static void idt_desc_init(void){
 }
 
 /* 通用的中断处理函数，一般用在出现异常的时候处理 */
-static void general_intr_handler(uint64_t vec_nr){
+static void general_intr_handler(uint8_t vec_nr){
   /* IRQ7和IRQ15会产生伪中断，IRQ15是从片上最后一个引脚，保留项，这俩都不需要处理 */
   if(vec_nr == 0x27 || vec_nr == 0x2f){
     return;
