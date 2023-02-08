@@ -7,6 +7,7 @@
 #include "syscall-init.h"
 #include "syscall.h"
 #include "stdio.h"
+#include "stdio-kernel.h"
 
 void k_thread_a(void*);     //自定义线程函数
 void k_thread_b(void*); 
@@ -19,10 +20,11 @@ int main(void){
   init_all();
 
   intr_enable();
-  process_execute(u_prog_a, "u_prog_a");
-  process_execute(u_prog_b, "u_prog_b");
-  thread_start("k_thread_a", 31, k_thread_a, " A_");
-  thread_start("k_thread_b", 31, k_thread_b, " B_");
+  printk("hello %s\n","peipei");
+  //process_execute(u_prog_a, "u_prog_a");
+  //process_execute(u_prog_b, "u_prog_b");
+  //thread_start("k_thread_a", 31, k_thread_a, " A_");
+  //thread_start("k_thread_b", 31, k_thread_b, " B_");
  while(1);//{
     //console_put_str("Main ");
   //};

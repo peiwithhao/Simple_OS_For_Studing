@@ -3,5 +3,5 @@
 #include "stdint.h"
 
 void timer_init(void);  //初始化PIT
-
+void mtime_sleep(uint32_t m_seconds);
 #endif

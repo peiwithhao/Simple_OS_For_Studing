@@ -83,4 +83,5 @@ struct gdt_desc{
 #define EFLAGS_IOPL_3   (3<<12)     //IOPL3,用于测试用户在非系统调用下进行IO
 #define EFLAGS_IOPL_0   (0<<12)     //IOPL0
 #define DIV_ROUND_UP(X, STEP) ((X + STEP - 1) / (STEP))
+#define UNUSED __attribute__((unused))
 #endif

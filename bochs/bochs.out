@@ -31,7 +31,7 @@
 00000000000i[      ]   SB16 support: no
 00000000000i[      ]   USB support: no
 00000000000i[      ]   VGA extension support: vbe
-00000000000i[MEM0  ] allocated memory at 0x7f499c3db010. after alignment, vector=0x7f499c3dc000
+00000000000i[MEM0  ] allocated memory at 0x7f64bbfd9010. after alignment, vector=0x7f64bbfda000
 00000000000i[MEM0  ] 32.00MB
 00000000000i[MEM0  ] mem block size = 0x00100000, blocks=32
 00000000000i[MEM0  ] rom at 0xfffe0000/131072 ('/home/dawn/repos/OS_learning/bochs/share/bochs/BIOS-bochs-latest')
@@ -41,7 +41,7 @@
 00000000000i[DEV   ] PIIX3 PCI-to-ISA bridge present at device 1, function 0
 00000000000i[PLUGIN] init_dev of 'cmos' plugin device by virtual method
 00000000000i[CMOS  ] Using local time for initial clock
-00000000000i[CMOS  ] Setting initial clock to: Tue Feb  7 00:34:39 2023 (time0=1675748079)
+00000000000i[CMOS  ] Setting initial clock to: Wed Feb  8 10:56:20 2023 (time0=1675871780)
 00000000000i[PLUGIN] init_dev of 'dma' plugin device by virtual method
 00000000000i[DMA   ] channel 4 used by cascade
 00000000000i[PLUGIN] init_dev of 'pic' plugin device by virtual method
@@ -69,8 +69,12 @@
 00000000000i[PLUGIN] init_dev of 'harddrv' plugin device by virtual method
 00000000000i[HD    ] HD on ata0-0: 'hd60M.img', 'flat' mode
 00000000000i[IMG   ] hd_size: 62447616
-00000000000i[HD    ] ata0-0: autodetect geometry: CHS=121/16/63
+00000000000i[HD    ] ata0-0: using specified geometry: CHS=121/16/63
+00000000000i[HD    ] HD on ata0-1: 'hd80M.img', 'flat' mode
+00000000000i[IMG   ] hd_size: 83607552
+00000000000i[HD    ] ata0-1: using specified geometry: CHS=162/16/63
 00000000000i[HD    ] translation on ata0-0 set to 'none'
+00000000000i[HD    ] translation on ata0-1 set to 'none'
 00000000000i[HD    ] Using boot sequence disk, none, none
 00000000000i[HD    ] Floppy boot signature check is enabled
 00000000000i[PLUGIN] init_dev of 'pci_ide' plugin device by virtual method
@@ -175,7 +179,7 @@
 00001529208i[BXVGA ] VBE known Display Interface b0c0
 00001529240i[BXVGA ] VBE known Display Interface b0c5
 00001532165i[VBIOS ] VBE Bios $Id: vbe.c,v 1.65 2014/07/08 18:02:25 vruppert Exp $
-00001876642i[BIOS  ] ata0-0: PCHS=121/16/63 translation=none LCHS=121/16/63
-00004315092i[XGUI  ] charmap update. Font Height is 16
-00005753848i[BIOS  ] IDE time out
-00017844208i[BIOS  ] Booting from 0000:7c00
+00001876692i[BIOS  ] ata0-0: PCHS=121/16/63 translation=none LCHS=121/16/63
+00001930725i[BIOS  ] ata0-1: PCHS=162/16/63 translation=none LCHS=162/16/63
+00003857632i[XGUI  ] charmap update. Font Height is 16
+00014109274i[BIOS  ] Booting from 0000:7c00
