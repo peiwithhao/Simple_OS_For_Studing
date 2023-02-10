@@ -13,7 +13,7 @@ struct inode{
   bool write_deny;              //写文件标识
   /* i_sectors[0-11]是直接索引，i_sectors[12]用来存储一级间接索引指针 */
   uint32_t i_sectors[13];
-  struct list_elem inode_tag;
+  struct list_elem inode_tag;   //用于维护已打开的inode队列
 };
 
 #endif

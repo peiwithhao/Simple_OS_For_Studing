@@ -1,7 +1,3 @@
-## 0x00 文件操作相关基础函数
-### 1.inode相关
-这里我们首先实现获取inode具体偏移地址，以及写入inode的操作，如下我们创建fs/inode.c
-```
 #include "inode.h"
 #include "global.h"
 #include "debug.h"
@@ -74,6 +70,5 @@ void inode_sync(struct partition* part, struct inode* inode, void* io_buf){
   }
 }
 
-```
-
+/* 根据i结点号返回相应的inode */
 
