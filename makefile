@@ -3,7 +3,7 @@ ENTRY_POINT = 0xc0001500
 AS = nasm
 CC = gcc
 LD = ld
-LIB = -I lib/ -I lib/kernel/ -I lib/user/ -I kernel/ -I device/ -I thread/ -I userprog/ 
+LIB = -I lib/ -I lib/kernel/ -I lib/user/ -I kernel/ -I device/ -I thread/ -I userprog/ -I fs/
 ASFLAGS = -f elf
 CFLAGS = -Wall $(LIB) -c -fno-builtin -m32 -fno-stack-protector -W -Wstrict-prototypes \
 				 -Wmissing-prototypes
@@ -12,7 +12,7 @@ OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/init.o $(BUILD_DIR)/interrupt.o $(BUILD_
 			 $(BUILD_DIR)/print.o $(BUILD_DIR)/debug.o $(BUILD_DIR)/string.o $(BUILD_DIR)/bitmap.o $(BUILD_DIR)/memory.o \
 			 $(BUILD_DIR)/thread.o $(BUILD_DIR)/list.o $(BUILD_DIR)/switch.o $(BUILD_DIR)/sync.o $(BUILD_DIR)/console.o \
 			 $(BUILD_DIR)/keyboard.o $(BUILD_DIR)/ioqueue.o $(BUILD_DIR)/tss.o $(BUILD_DIR)/process.o $(BUILD_DIR)/syscall.o \
-			 $(BUILD_DIR)/syscall-init.o $(BUILD_DIR)/stdio.o $(BUILD_DIR)/stdio-kernel.o $(BUILD_DIR)/ide.o
+			 $(BUILD_DIR)/syscall-init.o $(BUILD_DIR)/stdio.o $(BUILD_DIR)/stdio-kernel.o $(BUILD_DIR)/ide.o $(BUILD_DIR)/fs.o
 		
 
 ############### C代码编译 #################
@@ -119,6 +119,12 @@ $(BUILD_DIR)/ide.o : device/ide.c device/ide.h \
 	thread/sync.h lib/kernel/list.h kernel/global.h thread/thread.h \
 	lib/kernel/bitmap.h kernel/memory.h lib/kernel/io.h lib/stdio.h lib/stdint.h \
 	lib/kernel/stdio-kernel.h kernel/interrupt.h kernel/debug.h device/timer.h lib/string.h
+	$(CC) $(CFLAGS) $< -o $@
+
+$(BUILD_DIR)/fs.o : fs/fs.c fs/fs.h lib/stdint.h device/ide.h thread/sync.h lib/kernel/list.h \
+	kernel/global.h thread/thread.h lib/kernel/bitmap.h kernel/memory.h fs/super_block.h \
+	fs/inode.h fs/dir.h lib/kernel/stdio-kernel.h lib/string.h kernel/debug.h kernel/interrupt.h \
+	lib/kernel/print.h
 	$(CC) $(CFLAGS) $< -o $@
 
 

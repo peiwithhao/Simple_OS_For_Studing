@@ -38,6 +38,10 @@ struct ide_channel{
   struct disk devices[2];       //一个通道上的主从两个硬盘
 };
 
+extern uint8_t channel_cnt;
+extern struct ide_channel channels[];
+extern struct list partition_list;
+
 void ide_init(void);
 void ide_read(struct disk* hd, uint32_t lba, void* buf, uint32_t sec_cnt);
 void ide_write(struct disk* hd, uint32_t lba, void* buf, uint32_t sec_cnt);
