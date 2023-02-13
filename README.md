@@ -817,3 +817,129 @@ int main(void){
 ![](http://imgsrc.baidu.com/super/pic/item/6f061d950a7b0208a91b012627d9f2d3562cc823.jpg)
 这个图就是我第二次运行内核所跑出的结果，他提示咱们已经正确创建过/file1了，我们再到磁盘上面检查一下看是否确实正确创建了。
 为了到磁盘上面查找信息，所以咱们拿之前初始化的时候打印的信息来确定
+![](https://img-blog.csdnimg.cn/b60a5d55a0a54a8ea7bac09b73038118.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzM3NTAwNTE2,size_16,color_FFFFFF,t_70)
+
+这里可以看到咱们的data扇区最开始是在0xA67，且咱们的根目录最开始就会放入磁盘数据扇区最开始的地方，所以这里应该是存放的咱们的根目录，其中存放着一些目录项，因此我们通过xxd脚本进行查看
+0xA67用十进制来表示就是2663扇区，所以便宜量用字节来表示就是2663×512 = 1363456
+![](http://imgsrc.baidu.com/super/pic/item/5d6034a85edf8db1864545a34c23dd54574e7489.jpg)
+这里我们看到了我们自己创建的文件，十分成功,除了file1,其实咱们也可以看到"."和".."，他的ASCII码为0x2E和0x2E2E,也就恰好表示了当前目录与父目录
+
+
+## 0x02 文件的打开与关闭
+上一节我们成功实现了创建文件的功能，这一节我们来补充一下关闭文件的部分
+### 1.打开文件
+我们目前已经在根目录下创建了文件file1,现在咱们要再进行打开操作了，直接写代码，原理没啥好讲的，在file.c中定义函数file_open
+```
+/* 打开编号为inode_no的inode对应得文件 */
+int32_t file_open(uint32_t inode_no, uint8_t flag){
+  int fd_idx = get_free_slot_in_global();
+  if(fd_idx == -1){
+    printk("exceed max open files\n");
+    return -1;
+  }
+  file_table[fd_idx].fd_inode = inode_open(cur_part, inode_no);
+  file_table[fd_idx].fd_pos = 0;        //每次打开文件需要将偏移指针置0,也就是开头
+  file_table[fd_idx].fd_flag = flag;
+  bool* write_deny = &file_table[fd_idx].fd_inode->write_deny;
+  if(flag & O_WRONLY || flag & O_RDWR){
+    //只要是关于写文件，判断是否有其他进程正写此文件
+    //若是读文件，不考虑write_deny
+    /* 以下进入临界区前先关中断 */
+    enum intr_status old_status = intr_disable();
+    if(!(*write_deny)){     //这里若通过则说明没有别的进程正在写
+      *write_deny = true;   //这里置为空避免多个进程同时写文件
+      intr_set_status(old_status);
+    }else{
+      intr_set_status(old_status);
+      printk("file can not be write now, try again later\n");
+      return -1;
+    }
+  } //若是读文件或者创建文件，则不用理会write_deny，保持默认
+  return pcb_fd_install(fd_idx);
+}
+
+```
+
+这里记得修改一下sys_open
+```
+  switch(flags & O_CREAT){
+    case O_CREAT:
+      printk("creating file\n");
+      fd = file_create(searched_record.parent_dir, (strrchr(pathname, '/') + 1), flags);
+      dir_close(searched_record.parent_dir);
+      break;
+    default:
+      /* 其余情况均为打开已存在文件 */
+      fd = file_open(inode_no, flags);
+  }
+
+```
+
+
+### 2.文件的关闭
+关闭文件比较简单，如下：
+```
+/* 关闭文件 */
+int32_t file_close(struct file* file){
+  if(file == NULL){
+    return -1;
+  }
+  file->fd_inode->write_deny = false;
+  inode_close(file->fd_inode);
+  file->fd_inode = NULL;
+  return 0;
+}
+
+```
+
+这里就是一些释放空间和置初值了，然后我们到fs/fs.c中还需要实现两个函数：
+```
+/* 将文件描述符转化为文件表的下标 */
+static uint32_t fd_local2global(uint32_t local_fd){
+  struct task_struct* cur = running_thread();
+  int32_t global_fd = cur->fd_table[local_fd];
+  ASSERT(global_fd >= 0 && global_fd < MAX_FILE_OPEN);
+  return (uint32_t)global_fd;
+}
+
+/* 关闭文件描述符所指向的文件.成功返回0,否则返回-1 */
+int32_t sys_close(int32_t fd){
+  int32_t ret = -1;
+  if(fd > 2){
+    uint32_t _fd = fd_local2global(fd);
+    ret = file_close(&file_table[_fd]);
+    running_thread()->fd_table[fd] = -1;    //使该进程的描述符可用
+  }
+  return ret;
+}
+
+```
+
+这一部分十分简单，我们立马到main函数中测试：
+```
+int main(void){
+  put_str("I am Kernel\n");
+  init_all();
+
+  intr_enable();
+  //process_execute(u_prog_a, "u_prog_a");
+  //process_execute(u_prog_b, "u_prog_b");
+  //thread_start("k_thread_a", 31, k_thread_a, " A_");
+  //thread_start("k_thread_b", 31, k_thread_b, " B_");
+  uint32_t fd = sys_open("/file1", O_RDONLY);
+  printf("fd:%d\n", fd);
+  sys_close(fd);
+  printf("%d closed now\n", fd);
+ while(1);//{
+    //console_put_str("Main ");
+  //};
+  return 0;
+}
+
+```
+
+![](http://imgsrc.baidu.com/super/pic/item/8718367adab44aed93f78623f61c8701a08bfbb8.jpg)
+
+## 0x03 总结
+就目前来说咱们对于文件系统还远远没有完成，可见他的代码量之多，现在仅仅实现了创建文件以及打开和关闭文件这几个基本功能，还有比较重要的将在之后讲解。
+本章代码多确实没办法，因为原理始终是那么简单的，说也说不了很多，但是他代码长也是没办法。

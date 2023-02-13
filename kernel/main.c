@@ -25,7 +25,10 @@ int main(void){
   //process_execute(u_prog_b, "u_prog_b");
   //thread_start("k_thread_a", 31, k_thread_a, " A_");
   //thread_start("k_thread_b", 31, k_thread_b, " B_");
-  sys_open("/file1", O_CREAT);
+  uint32_t fd = sys_open("/file1", O_RDONLY);
+  printf("fd:%d\n", fd);
+  sys_close(fd);
+  printf("%d closed now\n", fd);
  while(1);//{
     //console_put_str("Main ");
   //};
