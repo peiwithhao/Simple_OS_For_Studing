@@ -57,7 +57,7 @@ int8_t strcmp(const char* a, const char* b){
     a++;
     b++;
   }
-  return *a < *b ? -1 : *a > *b ;
+  return *a < *b ? -1 : *a > *b ;       //这里如果*a > *b 则返回1, 若相等则说明表达式不成立返回0,表示相等
 }
 
 /* 从左到右查找字符串str中首次出现字符ch的地址 */
