@@ -4,7 +4,7 @@
 #include "stdint.h"
 
 void memset(void* dst_, uint8_t value, uint32_t size); //单字节复制，指定目的地
-void memcpy(void* dst_, void* src_, uint32_t size);     //多字节复制，指定目的地
+void memcpy(void* dst_, const void* src_, uint32_t size);     //多字节复制，指定目的地
 int memcmp(const void* a_, const void* b_, uint32_t size);  //比较多个字节
 char* strcpy(char* dst_, const char* src_);     //复制字符串
 uint32_t strlen(const char* str);               //获取字符串长度

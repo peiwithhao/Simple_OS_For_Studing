@@ -31,7 +31,7 @@
 00000000000i[      ]   SB16 support: no
 00000000000i[      ]   USB support: no
 00000000000i[      ]   VGA extension support: vbe
-00000000000i[MEM0  ] allocated memory at 0x7f178d477010. after alignment, vector=0x7f178d478000
+00000000000i[MEM0  ] allocated memory at 0x7fd3c3926010. after alignment, vector=0x7fd3c3927000
 00000000000i[MEM0  ] 32.00MB
 00000000000i[MEM0  ] mem block size = 0x00100000, blocks=32
 00000000000i[MEM0  ] rom at 0xfffe0000/131072 ('/home/dawn/repos/OS_learning/bochs/share/bochs/BIOS-bochs-latest')
@@ -41,7 +41,7 @@
 00000000000i[DEV   ] PIIX3 PCI-to-ISA bridge present at device 1, function 0
 00000000000i[PLUGIN] init_dev of 'cmos' plugin device by virtual method
 00000000000i[CMOS  ] Using local time for initial clock
-00000000000i[CMOS  ] Setting initial clock to: Mon Feb 13 04:18:14 2023 (time0=1676279894)
+00000000000i[CMOS  ] Setting initial clock to: Tue Feb 14 11:03:53 2023 (time0=1676390633)
 00000000000i[PLUGIN] init_dev of 'dma' plugin device by virtual method
 00000000000i[DMA   ] channel 4 used by cascade
 00000000000i[PLUGIN] init_dev of 'pic' plugin device by virtual method
@@ -181,5 +181,27 @@
 00001532165i[VBIOS ] VBE Bios $Id: vbe.c,v 1.65 2014/07/08 18:02:25 vruppert Exp $
 00001876692i[BIOS  ] ata0-0: PCHS=121/16/63 translation=none LCHS=121/16/63
 00001930725i[BIOS  ] ata0-1: PCHS=162/16/63 translation=none LCHS=162/16/63
-00005833480i[XGUI  ] charmap update. Font Height is 16
+00004722356i[XGUI  ] charmap update. Font Height is 16
 00014109274i[BIOS  ] Booting from 0000:7c00
+11908281736i[      ] Ctrl-C detected in signal handler.
+11908281737i[      ] dbg: Quit
+11908281737i[CPU0  ] CPU is in protected mode (active)
+11908281737i[CPU0  ] CS.mode = 32 bit
+11908281737i[CPU0  ] SS.mode = 32 bit
+11908281737i[CPU0  ] EFER   = 0x00000000
+11908281737i[CPU0  ] | EAX=00000000  EBX=c000cbac  ECX=c009eb6c  EDX=0000000b
+11908281737i[CPU0  ] | ESP=c009ef80  EBP=c009effc  ESI=00070000  EDI=c009efd8
+11908281737i[CPU0  ] | IOPL=0 id vip vif ac vm rf nt of df IF tf sf zf af pf cf
+11908281737i[CPU0  ] | SEG sltr(index|ti|rpl)     base    limit G D
+11908281737i[CPU0  ] |  CS:0008( 0001| 0|  0) 00000000 ffffffff 1 1
+11908281737i[CPU0  ] |  DS:0010( 0002| 0|  0) 00000000 ffffffff 1 1
+11908281737i[CPU0  ] |  SS:0010( 0002| 0|  0) 00000000 ffffffff 1 1
+11908281737i[CPU0  ] |  ES:0010( 0002| 0|  0) 00000000 ffffffff 1 1
+11908281737i[CPU0  ] |  FS:0000( 0000| 0|  0) 00000000 00000000 0 0
+11908281737i[CPU0  ] |  GS:0018( 0003| 0|  0) c00b8000 00007fff 1 1
+11908281737i[CPU0  ] | EIP=c0001705 (c0001705)
+11908281737i[CPU0  ] | CR0=0xe0000011 CR2=0x00000000
+11908281737i[CPU0  ] | CR3=0x00100000 CR4=0x00000000
+11908281737i[CMOS  ] Last time is 1676393610 (Tue Feb 14 11:53:30 2023)
+11908281737i[XGUI  ] Exit
+11908281737i[SIM   ] quit_sim called with exit code 0

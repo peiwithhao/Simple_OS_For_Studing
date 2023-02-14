@@ -9,6 +9,7 @@
 #include "list.h"
 #include "memory.h"
 #include "global.h"
+#include "timer.h"
 
 /* 定义硬盘各寄存器的端口号 */
 #define reg_data(channel)   (channel->port_base + 0)

@@ -54,8 +54,8 @@ uint32_t getpid(){
 }
 
 /* 系统调用write */
-uint32_t write(char* str){
-  return _syscall1(SYS_WRITE, str);
+uint32_t write(int32_t fd, const void* buf, uint32_t count){
+  return _syscall3(SYS_WRITE, fd, buf, count);
 }
 
 /* 系统调用malloc */
