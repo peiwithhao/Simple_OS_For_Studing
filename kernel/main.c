@@ -9,6 +9,7 @@
 #include "stdio.h"
 #include "stdio-kernel.h"
 #include "fs.h"
+#include "dir.h"
 
 void k_thread_a(void*);     //自定义线程函数
 void k_thread_b(void*); 
@@ -20,22 +21,16 @@ int main(void){
   put_str("I am Kernel\n");
   init_all();
   intr_enable();
-  printf("/dir1/subdir1 create %s!\n", sys_mkdir("/dir1/subdir1") == 0 ? "done" : "fail");
-  printf("/dir1 create %s\n", sys_mkdir("/dir1") == 0 ? "done" : "fail");
-  printf("now /dir1/subdir1 create %s!\n", sys_mkdir("/dir1/subdir1") == 0 ? "done" : "fail");
-  int fd = sys_open("/dir1/subdir1/file2", O_CREAT | O_RDWR);
-  if(fd != -1){
-    printf("/dir1/subdir1/file2 creat done!\n");
-    sys_write(fd, "Catch me if you can!\n", 21);
-    sys_lseek(fd, 0, SEEK_SET);
-    char buf[32] = {0};
-    sys_read(fd, buf, 21);
-    printf("/dir1/subdir1/file2 says:\n%s\n", buf);
-    sys_close(fd);
-  }
- while(1);//{
-    //console_put_str("Main ");
-  //};
+  struct stat obj_stat;
+  sys_stat("/", &obj_stat);
+  printf("/'s info\n    i_no:%d\n   size:%d\n   filetype:%s\n", \
+      obj_stat.st_ino, obj_stat.st_size, \
+      obj_stat.st_filetype == 2 ? "directory" : "regular");
+  sys_stat("/dir1", &obj_stat);
+  printf("/dir1's info\n    i_no:%d\n   size:%d\n   filetype:%s\n", \
+      obj_stat.st_ino, obj_stat.st_size, \
+      obj_stat.st_filetype == 2 ? "directory" : "regular");
+  while(1);
   return 0;
 }
 

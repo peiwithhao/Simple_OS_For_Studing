@@ -96,6 +96,7 @@ void init_thread(struct task_struct* pthread, char* name, int prio){
     pthread->fd_table[fd_idx] = -1;
     fd_idx++;
   }
+  pthread->cwd_inode_nr = 0;    //以根目录作为默认工作路径
   pthread->stack_magic = 0xdeadbeef;    //自定义魔数
 }
 

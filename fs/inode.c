@@ -9,7 +9,7 @@
 #include "thread.h"
 #include "interrupt.h"
 #include "file.h"
-
+#include "string.h"
 /* 用来存储inode位置 */
 struct inode_position{
   bool two_sec;     //inode是否跨扇区
