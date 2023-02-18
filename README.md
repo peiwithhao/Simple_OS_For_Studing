@@ -236,7 +236,7 @@ void init(void){
 
 我们的pid是从1开始分配的，而init的pid需要为1,但是目前来说我么主线程的pid是1,idle线程的pid是2,所以我们需要在`make_main_thread`函数执行之前创建init，同样是在thread_init函数之中添加
 这里可以看到我们已经成功分配了init进程了
-![](https://attach.52pojie.cn/forum/202302/18/205634rrq7wr48qqtjz5cv.png)
+![分配init](http://imgsrc.baidu.com/super/pic/item/738b4710b912c8fce359a70ab9039245d788214a.jpg)
 
 ## 0x01 添加read系统调用
 我们现在的目标是同系统进行交互，那么我们肯定需要知道用户键入了什么命令，所以我们先从键盘中获取输入，所以我们迫切的需要添加read的系统调用，之前我们已经实现了sys_read函数，但是他只能从文件上面读取信息，还不能从标准输入设备获取数据，因此我们来修改一下sys_read函数
@@ -445,7 +445,7 @@ void init(void){
 ```
 
 这里我们的init进程会创建子进程来运行shell函数，结果如下
-![]()
+![创建shell](https://attach.52pojie.cn/forum/202302/18/205647mgnxf3ofi7fjjnz3.png)
 
 
 ### 2.添加ctrl+u 和 ctrl+l 快捷键
@@ -603,7 +603,7 @@ void my_shell(void){
 ```
 
 上述代码并不难，其中涉及的操作只是字符串的切割，现在我们来运行一下虚拟机查看情况
-![]()
+![回响](https://attach.52pojie.cn/forum/202302/18/205649ndqzrq9oam9ubdwu.png)
 
 ### 4.添加系统调用
 这里我们统一将以前的系统调用都加进来，开始充实咱们的用户层能干的事
@@ -880,7 +880,7 @@ void my_shell(void){
 ```
 
 这里我们进行一个简单的测试
-![]()
+![相对到绝对](https://attach.52pojie.cn/forum/202302/18/205651f8cosw1joskjavli.png)
 可以看到这里我们是确实随便输入相对路径他都会返回一个正确的绝对路径，这为咱们接下来的工作打好了基础
 
 ### 6.实现ls、cd、mkdir、ps、rm等命令
@@ -1201,7 +1201,7 @@ void my_shell(void){
 ```
 
 然后我们到虚拟机当中测试一些基本命令，可以看到如下确实成功解析了咱们的输入
-![]()
+![基本命令](https://attach.52pojie.cn/forum/202302/18/205653ml5euz2ugeittbtu.png)
 
 ## 0x04 总结
 目前用户交互的部分已经完结，剩下最后一部分那就是用户进程了。代码整体上来看还是挺简单的，所以我们后期的任务比之前轻松许多。还有最后一部分，加油吧
