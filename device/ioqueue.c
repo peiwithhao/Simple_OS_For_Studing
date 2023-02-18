@@ -46,7 +46,7 @@ char ioq_getchar(struct ioqueue* ioq){
   ASSERT(intr_get_status() == INTR_OFF);
   /* 若缓冲区为空，把消费者ioq->consumer记为当前线程自己
    * 目的是将来生产者往缓冲区里面装商品的时候，生产者知道唤醒哪个消费者
-   * 也就是幻想当前线程自己 */
+   * 也就是唤醒当前线程自己 */
   while(ioq_empty(ioq)){
     lock_acquire(&ioq->lock);
     ioq_wait(&ioq->consumer);

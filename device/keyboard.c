@@ -181,6 +181,15 @@ static void intr_keyboard_handler(void){
     char cur_char = keymap[index][shift];   //在数组中寻找对应的字符
     /* 只处理ASCII码不为0的键 */
     if(cur_char){
+      /********************* 快捷键ctrl+l和ctrl+u的处理 **********************
+       * cur_char的asc码-字符a的asc码，此差值比较小，
+       * 属于asc码表当中不可见字符的部分，故不会产生可见字符
+       * 我们在shell当中将ascii值为l-a和u-a的分别处理为清屏和删除输入的快捷键 */
+      if((ctrl_down_last && cur_char == 'l') || (ctrl_down_last && cur_char == 'u')){
+        cur_char -= 'a';
+      }
+      /***********************************************************************/
+
       /* 若kbd_buf中未满且待加入的cur_char不为0,
        * 则将其加入到缓冲区kbd_buf当中 */
       if(!ioq_full(&kbd_buf)){

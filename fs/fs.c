@@ -13,6 +13,8 @@
 #include "stdio-kernel.h"
 #include "inode.h"
 #include "console.h"
+#include "ioqueue.h"
+#include "keyboard.h"
 struct partition* cur_part;     //默认情况下操作的是哪个分区
 
 /* 在分区链表中找到名为part_name的分区，并将其指针赋值给cur_part */
@@ -178,7 +180,7 @@ static void partition_format(struct partition* part){
   p_de++;
 
   /* 初始化当前目录的父目录".." */
-  memcpy(p_de->filename, "..", 1);
+  memcpy(p_de->filename, "..", 2);
   p_de->i_no = 0;   //根目录的父目录还是其自己
   p_de->f_type = FT_DIRECTORY;
 
@@ -250,7 +252,7 @@ void filesys_init(){
 }
 
 /* 将最上层路径名称解析出来 */
-static char* path_parse(char* pathname, char* name_store){
+char* path_parse(char* pathname, char* name_store){
   if(pathname[0] == '/'){
     /* 路径中出现1个或多个连续的字符'/'，将这些'/'跳过，如"///a/b" */
     while(*(++pathname) == '/');
@@ -388,8 +390,7 @@ int32_t sys_open(const char* pathname, uint8_t flags){
     return -1;
   }
   switch(flags & O_CREAT){
-    case O_CREAT:
-      printk("creating file\n");
+    case O_CREAT:   
       fd = file_create(searched_record.parent_dir, (strrchr(pathname, '/') + 1), flags);
       dir_close(searched_record.parent_dir);
       break;
@@ -445,13 +446,25 @@ int32_t sys_write(int32_t fd, const void* buf, uint32_t count){
 
 /* 从文件描述符fd指向的文件中读取count个字节到buf，若成功则返回读出的字节数，失败则返回-1 */
 int32_t sys_read(int32_t fd, void* buf, uint32_t count){
-  if(fd < 0){
+  ASSERT(buf != NULL);
+  int32_t ret = -1;
+  if(fd < 0 || fd == stdout_no || fd == stderr_no){
     printk("sys_read: fd error\n");
     return -1;
-  }
-  ASSERT(buf != NULL);
+  }else if(fd == stdin_no){
+    char* buffer = buf;
+    uint32_t bytes_read = 0;
+    while(bytes_read < count){
+      *buffer = ioq_getchar(&kbd_buf);          //这里的kbd_buf是之前我们实现键盘输入的共用缓冲区
+      bytes_read++;
+      buffer++;
+    }
+    ret = (bytes_read == 0 ? -1 : (int32_t)bytes_read);
+  }else{
   uint32_t _fd = fd_local2global(fd);
-  return file_read(&file_table[_fd], buf, count);
+  ret = file_read(&file_table[_fd], buf, count);
+  }
+  return ret;
 }
 
 /* 重置文件的偏移指针，成功时则返回偏移量，失败的时候返回-1 */
@@ -856,4 +869,9 @@ int32_t sys_stat(const char* path, struct stat* buf){
   }
   dir_close(searched_record.parent_dir);
   return ret;
+}
+
+/* 向屏幕输出一个字符 */
+sys_putchar(char char_asci){
+  console_put_char(char_asci);
 }

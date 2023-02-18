@@ -42,6 +42,9 @@ struct stat{
   enum file_types st_filetype;      //文件类型
 };
 
+
+
+
 extern struct partition* cur_part;
 void filesys_init(void);
 int32_t path_depth_cnt(char* pathname);
@@ -59,4 +62,7 @@ void sys_rewinddir(struct dir* dir);
 int32_t sys_rmdir(const char* pathname);
 char* sys_getcwd(char* buf, uint32_t size);
 int32_t sys_chdir(const char* path);
+void sys_putchar(char char_asci);
+int32_t sys_stat(const char* path, struct stat* buf);
+char* path_parse(char* pathname, char* name_store);
 #endif

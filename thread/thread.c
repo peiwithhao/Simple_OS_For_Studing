@@ -9,7 +9,9 @@
 #include "print.h"
 #include "process.h"
 #include "sync.h"
-
+#include "file.h"
+#include "fs.h"
+#include "stdio.h"
 struct task_struct* main_thread;    //主线程PCB
 struct list thread_ready_list;      //就绪队列
 struct list thread_all_list;        //所有任务队列
@@ -18,6 +20,7 @@ struct lock pid_lock;       //分配pid锁
 struct task_struct* idle_thread;    //idle线程
 
 extern void switch_to(struct task_struct* cur, struct task_struct* next);
+extern void init(void);
 
 /* 系统空闲的时候运行的闲逛线程 */
 static void idle(void* arg UNUSED){
@@ -97,6 +100,7 @@ void init_thread(struct task_struct* pthread, char* name, int prio){
     fd_idx++;
   }
   pthread->cwd_inode_nr = 0;    //以根目录作为默认工作路径
+  pthread->parent_pid = -1;     //默认为-1,表示没有父进程
   pthread->stack_magic = 0xdeadbeef;    //自定义魔数
 }
 
@@ -154,6 +158,8 @@ void schedule(){
   if(list_empty(&thread_ready_list)){
     thread_unblock(idle_thread);
   }
+  ASSERT(!list_empty(&thread_ready_list));
+  thread_tag = NULL;
   /* 将thread_ready_list队列中的地一个就绪线程弹出，准备将他调入CPU运行*/
   thread_tag = list_pop(&thread_ready_list);
   struct task_struct* next = elem2entry(struct task_struct, general_tag, thread_tag);
@@ -203,16 +209,92 @@ void thread_unblock(struct task_struct* pthread){
   intr_set_status(old_status);
 }
 
+/* 以填充空格的方式输出buf */
+static void pad_print(char* buf, int32_t buf_len, void* ptr, char format){
+  memset(buf, 0, buf_len);
+  uint8_t out_pad_0idx = 0;
+  switch(format){
+    case 's':
+      out_pad_0idx = sprintf(buf, "%s", ptr);
+      break;
+    case 'd':
+      out_pad_0idx = sprintf(buf, "%d", *((int16_t*)ptr));
+    case 'x':
+      out_pad_0idx = sprintf(buf, "%x", *((uint32_t*)ptr));
+  }
+  while(out_pad_0idx < buf_len){    //这里用空格补充剩余的块数，这里的输出是为了对齐
+    buf[out_pad_0idx] = ' ';
+    out_pad_0idx++;
+  }
+  sys_write(stdout_no, buf, buf_len - 1);
+}
+
+/* 用于在lsit_traversal函数当中的回调函数，用于针对线程队列的处理 */
+static bool elem2thread_info(struct list_elem* pelem, int arg UNUSED){
+  struct task_struct* pthread = elem2entry(struct task_struct, all_list_tag, pelem);
+  char out_pad[16] = {0};
+  pad_print(out_pad, 16, &pthread->pid, 'd');
+  if(pthread->parent_pid == -1){
+    pad_print(out_pad, 16, "NULL", 's');
+  }else{
+    pad_print(out_pad, 16, &pthread->parent_pid, 'd');
+  }
+  switch(pthread->status){
+    case 0:
+      pad_print(out_pad, 16, "RUNNING", 's');
+      break;
+    case 1:
+      pad_print(out_pad, 16, "READY", 's');
+      break;
+    case 2:
+      pad_print(out_pad, 16, "BLOCKED", 's');
+      break;
+    case 3:
+      pad_print(out_pad, 16, "WAITING", 's');
+      break;
+    case 4:
+      pad_print(out_pad, 16, "HANGING", 's');
+      break;
+    case 5:
+      pad_print(out_pad, 16, "DIED", 's');
+  }
+  pad_print(out_pad, 16, &pthread->elapsed_ticks, 'x');
+  memset(out_pad, 0, 16);
+  ASSERT(strlen(pthread->name) < 17);
+  //memcpy(out_pad, pthread->name, strlen(pthread->name));
+  pad_print(out_pad, 16, &pthread->name, 's');
+  printk("\n");
+  //strcat(out_pad, '\n');
+  //sys_write(stdout_no, out_pad, strlen(out_pad));
+  return false;     //为了使用list_traversal继续遍历，所以返回false
+}
+
+/* 返回任务列表 */
+void sys_ps(void){
+  char* ps_title = "PID            PPID           STAT           TICKS          COMMAND\n";
+  sys_write(stdout_no, ps_title, strlen(ps_title));
+  list_traversal(&thread_all_list, elem2thread_info, 0);
+}
+
 /* 初始化线程环境 */
 void thread_init(void){
   put_str("thread_init start\n");
   list_init(&thread_ready_list);
   list_init(&thread_all_list);
   lock_init(&pid_lock);
+
+  /* 先创建地一个用户进程：init */
+  process_execute(init, "init");    //这里第一个初始化，那么会为其分配pid为1
+
   /* 将当前main函数创建为线程 */
   make_main_thread();
 
   /* 创建idle线程 */
   idle_thread = thread_start("idle", 10, idle, NULL);
   put_str("thread_init done\n");
+}
+
+/* 供外部调用分配pid */
+pid_t fork_pid(void){
+  return allocate_pid();    
 }
