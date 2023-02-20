@@ -1,5 +1,5 @@
 #include "syscall.h"
-#include "fs.h"
+#include "thread.h"
 
 /* 无参数的系统调用 */
 #define _syscall0(NUMBER) ({    \
@@ -70,7 +70,7 @@ void free(void* ptr){
 }
 
 /* 系统调用fork */
-pid_t fork(void){
+int16_t fork(void){
   return _syscall0(SYS_FORK);
 }
 
@@ -159,3 +159,29 @@ void ps(void) {
    _syscall0(SYS_PS);
 }
 
+int execv(const char* pathname, char** argv){
+  return _syscall2(SYS_EXECV, pathname, argv);
+}
+
+void exit(int32_t status){
+  _syscall1(SYS_EXIT, status);
+}
+
+pid_t wait(int32_t* status){
+  return _syscall1(SYS_WAIT, status);
+}
+
+/* 生成管道，pipefd[0]负责读，pipefd[1]负责写 */
+int32_t pipe(int32_t pipefd[2]){
+  return _syscall1(SYS_PIPE, pipefd);
+}
+
+/* 将文件描述符old_local_fd重定向为new_local_fd */
+void fd_redirect(uint32_t old_local_fd, uint32_t new_local_fd){
+  _syscall2(SYS_FD_REDIRECT, old_local_fd, new_local_fd);
+}
+
+/* 显示系统支持的命令 */
+void help(void){
+  _syscall0(SYS_HELP);
+}

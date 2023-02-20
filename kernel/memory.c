@@ -6,7 +6,6 @@
 #include "debug.h"
 #include "string.h"
 #include "sync.h"
-#include "thread.h"
 #include "interrupt.h"
 
 /************************ 位图地址 ****************************/
@@ -140,7 +139,7 @@ static void page_table_add(void* _vaddr, void* _page_phyaddr){
 
 /* 分配pg_cnt个页空间，成功则返回起始虚拟地址，失败时则返回NULL */
 void* malloc_page(enum pool_flags pf, uint32_t pg_cnt){
-  ASSERT(pg_cnt > 0 && pg_cnt < 32512);         //这里我们的物理内存是512字节，由于用户内存池和内核内存池各占一般，这里保守起见按照127MB，所以最多分配127MB/4KB = 32512页
+  ASSERT(pg_cnt > 0 && pg_cnt < 3840);         //这里我们的物理内存是512字节，由于用户内存池和内核内存池各占一般，这里保守起见按照127MB，所以最多分配127MB/4KB = 32512页
   /************************** malloc_page的原理是三个动作的合成 *********
    * 1. 通过vaddr_get在虚拟内存池中申请虚拟地址
    * 2. 通过palloc在物理内存池中申请物理页
@@ -170,10 +169,12 @@ void* malloc_page(enum pool_flags pf, uint32_t pg_cnt){
 /* 从内核物理内存池中申请1页内存 
  * 成功则返回其虚拟地址，失败则返回NULL*/
 void* get_kernel_pages(uint32_t pg_cnt){
+  lock_acquire(&kernel_pool.lock);
   void* vaddr = malloc_page(PF_KERNEL, pg_cnt);
   if(vaddr != NULL){    //如果分配的地址不为空，则将页框清0后返回
     memset(vaddr, 0, pg_cnt * PG_SIZE);
   }
+  lock_release(&kernel_pool.lock);
   return vaddr;
 }
 
@@ -181,7 +182,9 @@ void* get_kernel_pages(uint32_t pg_cnt){
 void* get_user_pages(uint32_t pg_cnt){
   lock_acquire(&user_pool.lock);
   void* vaddr = malloc_page(PF_USER, pg_cnt);
-  memset(vaddr, 0, pg_cnt * PG_SIZE);
+  if(vaddr != NULL){
+    memset(vaddr, 0, pg_cnt * PG_SIZE);
+  }
   lock_release(&user_pool.lock);
   return vaddr;
 }
@@ -197,7 +200,7 @@ void* get_a_page(enum pool_flags pf, uint32_t vaddr){
   /* 若当前是用户进程申请用户内存，就修改用户进程自己的虚拟地址位图 */
   if(cur->pgdir != NULL && pf == PF_USER){
     bit_idx = (vaddr - cur->userprog_vaddr.vaddr_start)/PG_SIZE;
-    ASSERT(bit_idx > 0);
+    ASSERT(bit_idx >= 0);
     bitmap_set(&cur->userprog_vaddr.vaddr_bitmap, bit_idx, 1);
   }else if(cur->pgdir == NULL && pf == PF_KERNEL){
     /* 如果当前是内核线程申请内核内存，则修改kernel_vaddr */
@@ -210,12 +213,13 @@ void* get_a_page(enum pool_flags pf, uint32_t vaddr){
 
   void* page_phyaddr = palloc(mem_pool);
   if(page_phyaddr == NULL){
+    lock_release(&mem_pool->lock);
     return NULL;
   }
   page_table_add((void*)vaddr, page_phyaddr);
   lock_release(&mem_pool->lock);
   return (void*)vaddr;
-}
+} 
 
 /* 得到虚拟地址映射到的物理地址 */
 uint32_t addr_v2p(uint32_t vaddr){
@@ -552,3 +556,19 @@ void* get_a_page_without_opvaddrbitmap(enum pool_flags pf, uint32_t vaddr){
   lock_release(&mem_pool->lock);
   return (void*)vaddr;
 }
+
+/* 根据物理页框地址pg_phy_addr在相应的内存池位图清0,不改动页表 */
+void free_a_phy_page(uint32_t pg_phy_addr){
+  struct pool* mem_pool;
+  uint32_t bit_idx = 0;
+  if(pg_phy_addr >= user_pool.phy_addr_start){  //如果是用户内存池
+    mem_pool = &user_pool;
+    bit_idx = (pg_phy_addr - user_pool.phy_addr_start) / PG_SIZE;
+  }else{
+    mem_pool = &kernel_pool;
+    bit_idx = (pg_phy_addr - kernel_pool.phy_addr_start) / PG_SIZE;
+  }
+  bitmap_set(&mem_pool->pool_bitmap, bit_idx, 0);
+}
+
+

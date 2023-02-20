@@ -404,7 +404,6 @@ int32_t file_read(struct file* file, void* buf, uint32_t count){
   uint8_t* io_buf = sys_malloc(BLOCK_SIZE);
   if(io_buf == NULL){
     printk("file_read: sys_malloc for io_buf failed\n");
-    return -1;
   }
   uint32_t* all_blocks = (uint32_t*)sys_malloc(BLOCK_SIZE + 48);    //同sys_write类似
   if(all_blocks == NULL){
@@ -421,8 +420,8 @@ int32_t file_read(struct file* file, void* buf, uint32_t count){
   /* 下面开始构建all_blocks块地址数组，这里同样分情况 */
   if(read_blocks == 0){         //在同一扇区内读数据，不涉及到跨扇区读取
     ASSERT(block_read_end_idx == block_read_start_idx);
-    if(block_read_start_idx < 12){
-      block_idx = block_read_start_idx;
+    if(block_read_end_idx < 12){
+      block_idx = block_read_end_idx;
       all_blocks[block_idx] = file->fd_inode->i_sectors[block_idx];
     }else{      //这说明是在一级间接块当中分配数据
       indirect_block_table = file->fd_inode->i_sectors[12];

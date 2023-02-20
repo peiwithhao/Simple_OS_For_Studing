@@ -5,9 +5,8 @@
 #include "memory.h"
 #include "bitmap.h"
 
-#define PG_SIZE 4096
 #define MAX_FILES_OPEN_PER_PROC 8
-
+#define TASK_NAME_LEN 16
 /* 自定义通用函数类型，它将在很多线程函数中作为形参类型 */
 typedef void thread_func(void*);
 typedef int16_t pid_t;   //进程的pid类型
@@ -81,7 +80,7 @@ struct task_struct{
   uint32_t* self_kstack;        //各内核线程都用自己的内核栈
   pid_t pid;
   enum task_status status;
-  char name[16];
+  char name[TASK_NAME_LEN];
   uint8_t priority;             //线程优先级
   uint8_t ticks;                //每次在处理器上执行的时间滴答数
 
@@ -89,7 +88,6 @@ struct task_struct{
    * 也就是此任务执行了多久 */
   uint32_t elapsed_ticks;
 
-  int32_t fd_table[MAX_FILES_OPEN_PER_PROC];    //文件描述符数组
   
   /* general_tag的作用是用于线程在一般的队列中的结点 */
   struct list_elem general_tag;
@@ -100,8 +98,10 @@ struct task_struct{
   uint32_t* pgdir;              //进程自己页表的虚拟地址
   struct virtual_addr userprog_vaddr;   //用户进程的虚拟地址
   struct mem_block_desc u_block_desc[DESC_CNT];     //用户进程的内存块描述符
+  int32_t fd_table[MAX_FILES_OPEN_PER_PROC];    //文件描述符数组
   uint32_t cwd_inode_nr;    //进程所在的工作目录的inode编号
   int16_t parent_pid;    //表示父进程的pid
+  int8_t exit_status;
   uint32_t stack_magic;         //栈的边界标记，用于检测栈的溢出
 };
 
@@ -120,4 +120,7 @@ void thread_unblock(struct task_struct* pthread);
 void thread_yield(void);
 pid_t fork_pid(void);
 void sys_ps(void);
+void thread_exit(struct task_struct* thread_over, bool need_schedule);
+struct task_struct* pid2thread(int32_t pid);
+void release_pid(pid_t pid);
 #endif

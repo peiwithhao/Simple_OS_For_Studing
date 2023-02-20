@@ -5,7 +5,7 @@ switch_to:
   ;栈中此处是返回地址
   push esi
   push edi
-  push edx
+  push ebx
   push ebp
   mov eax, [esp + 20]   ;得到栈中的参数cur, cur = [esp + 20]
   mov [eax], esp        ;保存栈顶指针esp,task_struct的self_kstack字段

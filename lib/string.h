@@ -1,6 +1,5 @@
 #ifndef __LIB_STRING_H
 #define __LIB_STRING_H
-#include "global.h"
 #include "stdint.h"
 
 void memset(void* dst_, uint8_t value, uint32_t size); //单字节复制，指定目的地

@@ -65,4 +65,6 @@ int32_t sys_chdir(const char* path);
 void sys_putchar(char char_asci);
 int32_t sys_stat(const char* path, struct stat* buf);
 char* path_parse(char* pathname, char* name_store);
+uint32_t fd_local2global(uint32_t local_fd);
+void sys_help(void);
 #endif

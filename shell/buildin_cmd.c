@@ -261,3 +261,8 @@ int32_t buildin_rm(uint32_t argc, char** argv){
   }
   return ret;
 }
+
+/* 显示内建命令 */
+void buildin_help(uint32_t argc UNUSED, char** argv UNUSED){
+  help();
+}
