@@ -236,7 +236,7 @@ void init(void){
 
 我们的pid是从1开始分配的，而init的pid需要为1,但是目前来说我么主线程的pid是1,idle线程的pid是2,所以我们需要在`make_main_thread`函数执行之前创建init，同样是在thread_init函数之中添加
 这里可以看到我们已经成功分配了init进程了
-![分配init](http://imgsrc.baidu.com/super/pic/item/738b4710b912c8fce359a70ab9039245d788214a.jpg)
+![分配init](http://imgsrc.baidu.com/forum/pic/item/738b4710b912c8fce359a70ab9039245d788214a.jpg)
 
 ## 0x01 添加read系统调用
 我们现在的目标是同系统进行交互，那么我们肯定需要知道用户键入了什么命令，所以我们先从键盘中获取输入，所以我们迫切的需要添加read的系统调用，之前我们已经实现了sys_read函数，但是他只能从文件上面读取信息，还不能从标准输入设备获取数据，因此我们来修改一下sys_read函数
