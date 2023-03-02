@@ -5,15 +5,15 @@ man syscall
 ```
 
 我们可以看到如下帮助手册
-![](http://imgsrc.baidu.com/super/pic/item/9213b07eca806538b7eaf9d5d2dda144ac3482f0.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/9213b07eca806538b7eaf9d5d2dda144ac3482f0.jpg)
 下面还有例子
-![](http://imgsrc.baidu.com/super/pic/item/3ac79f3df8dcd100ace7a5e7378b4710b8122ff8.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/3ac79f3df8dcd100ace7a5e7378b4710b8122ff8.jpg)
 上面的方式可能就是咱们系统编程的时候一直使用的方式。
 这里我们看到一个indirect说明这个syscall是间接方式，所以说这里咱们自然还存在直接方式啦，使用下面指令：
 ```
 man _syscall
 ```
-![](http://imgsrc.baidu.com/super/pic/item/43a7d933c895d143931db9e536f082025baf0788.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/43a7d933c895d143931db9e536f082025baf0788.jpg)
 这里我们看到了without library support，说明咱们摆脱了库的支持，所以是直接使用的系统调用，但是后面还有个OBSOLETE，这个单词是过时的的意思，至于为什么直接的过时了，这是因为使用直接的系统调用我们用户需要自行传递很多参数，而正常情况下这些参数十分影响我们正常的编程，所以现在大多数都是采用上面的间接系统调用，咱们只需要传递中断调用号就行了。
 还有个点我得提出来一下，那就是Linux中参数传递是采用寄存器的，这里大伙可能会有这么点疑问，就是64位好像确实使用寄存器传递参数，但是32位似乎是使用栈来传递参数吧，有这种疑问说明您平时的一些基础知识十分扎实，但是对于底层的了解少了点，我们平时不论是在编程或者说是pwn的过程中都是使用了库函数，在这一层我们确实是使用栈（64位前6个参数是寄存器，后面是栈），但是到了底层，我们都是使用寄存器进行参数传递，一方面是因为寄存器肯定快于位于内存的栈，另一方面是因为涉及到用户系统调用的栈切换，当位于内核栈我们还需要从用户栈上获取其中的参数的话会十分繁琐，因此在底层我们采取寄存器传参，这一点在我们编写自己的打印函数put_char的时候大伙肯定有所体会。
 
@@ -277,7 +277,7 @@ void u_prog_b(void){
 ```
 
 这里十分逻辑十分简单，那就是内核线程照例使用sys_getpid()函数来获取pid打印，而用户进程则使用getpid();来进行系统调用，然后最后会执行sys_getpid()，但是目前他还不会打印，所以让另外两个线程帮忙打印，下面就是咱们的实现结果：
-![](http://imgsrc.baidu.com/super/pic/item/50da81cb39dbb6fd791bbbe04c24ab18962b37b7.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/50da81cb39dbb6fd791bbbe04c24ab18962b37b7.jpg)
 这里看出我们确实打印出来了各自的pid，十分顺利。（这里pid的值从1开始的原因在以后我们讲解pid的时候再次进行解释）
 
 ## 0x02 实现进程打印的好帮手-printf
@@ -305,7 +305,7 @@ uint32_t sys_write(char* str){
 这里还是十分简单的，接下来正式开始咱们的格式化工作。
 ### 1.vsprintf
 调用printf后真正实现格式化的工作的是vsprintf，这里我们使用man vsprintf来查看他的功能。
-![](http://imgsrc.baidu.com/super/pic/item/9213b07eca806538b888fed5d2dda144ac348292.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/9213b07eca806538b888fed5d2dda144ac348292.jpg)
 该函数的功能就是把ap指向的可变参数，以字符串格式format中的符号%为替换标记，不修改原格式字符串format，将format中除了%类型字符以外的内容复制到str，解释完之后我们立刻开始实现，我们创建文件lib/stdio.c
 ```
 #include "stdio.h"
@@ -388,7 +388,7 @@ void u_prog_b(void){
 ```
 
 这里可以看到咱们进程不再依赖于线程打印了，而是使用printf进行输出，我们来看看效果
-![](http://imgsrc.baidu.com/super/pic/item/8ad4b31c8701a18bd8365789db2f07082938fe13.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/8ad4b31c8701a18bd8365789db2f07082938fe13.jpg)
 这里可以看到咱们进程自己实现的pid成功打印！！
 
 ### 2.完善printf
@@ -447,7 +447,7 @@ uint32_t vsprintf(char* str, const char* format, va_list ap){
   printf(" prog_a_pid:0x%x,and integer is %d, string is %s ,char is %c\n",getpid(),22,"hello world", 'S');
 ```
 结果仍然十分成功
-![](http://imgsrc.baidu.com/super/pic/item/f3d3572c11dfa9ecf93112d127d0f703908fc1dd.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/f3d3572c11dfa9ecf93112d127d0f703908fc1dd.jpg)
 
 
 ## 0x03 堆内存管理
@@ -509,7 +509,7 @@ void mem_init(){
 ```
 
 这里给出一个图来解释mem_block_desc和arena和mem_block的关系
-![](http://imgsrc.baidu.com/super/pic/item/0df3d7ca7bcb0a467954cdff2e63f6246a60af86.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/0df3d7ca7bcb0a467954cdff2e63f6246a60af86.jpg)
 也就是说arena是存在于已分配的页面中的，所以这里我们内存块的数量需要减去他结构体的大小再进行计算,其余就是一些普通的初始化过程。
 
 ### 2.实现sys_malloc
@@ -619,7 +619,7 @@ void* sys_malloc(uint32_t size){
 ```
 
 这一长串代码我来画图结合理解：
-![](http://imgsrc.baidu.com/super/pic/item/4e4a20a4462309f712d9edd4370e0cf3d6cad646.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/4e4a20a4462309f712d9edd4370e0cf3d6cad646.jpg)
 当然其中分配物理页框之前我们需要判断咱们此次使用的是内核线程还是用户进程，这个判断就不多说了。然后我们到main函数中试看看。我们只需要修改一下两个线程测试函数即可：
 ```
 /* 在线程中运行的函数 */
@@ -646,7 +646,7 @@ void k_thread_b(void* arg){
 ```
 
 上面就是打印出自己申请内存快的首地址，接下来我们看看效果
-![](http://imgsrc.baidu.com/super/pic/item/730e0cf3d7ca7bcb82f387e9fb096b63f724a868.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/730e0cf3d7ca7bcb82f387e9fb096b63f724a868.jpg)
 从中可以看到咱们确实正常的分配了33和63字节大小的块，并且这俩同属于64字节的arena，所以这里暂时只存在一片arena，且全是大小为64字节的block。
 
 ### 3.释放内存
@@ -905,7 +905,7 @@ void u_prog_b(void){
 ```
 
 然后我们来查看一下虚拟机中的效果
-![](http://imgsrc.baidu.com/super/pic/item/f7246b600c338744608260ba140fd9f9d62aa0b5.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/f7246b600c338744608260ba140fd9f9d62aa0b5.jpg)
 这里咱们可以看到进程ab中分配的虚拟地址都是同样的，这是因为用户虚拟地址是独占的，并且我们这里一下分配256,也就是0x100,这也是十分符合咱们的分配过程，之后我们发现线程ab却不一样，这是因为线程是共享空间的。
 
 ## 0x04 总结
