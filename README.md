@@ -2,7 +2,7 @@
 今天我们来介绍关于中断的基础知识，理论上经常将中断分为两大类。
 ### 1.外部中断
 一般指CPU外部硬件传来的中断，由于中断源必定为硬件，所以也被称为硬件中断，而我们CPU为了知道外面有人说哎呀我不行了我要中断辣，所以必须得有个传话筒，这里就存在着两个“传话筒”，也就是两根信号线，他们分别是INTR(INTeRrupt)和NMI(Non Maskable Interrupt)
-![](http://imgsrc.baidu.com/super/pic/item/2e2eb9389b504fc224d7cac0a0dde71191ef6d6f.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/2e2eb9389b504fc224d7cac0a0dde71191ef6d6f.jpg)
 上图给出了两种信号线的区别，其中INTR收到的信号都是不影响系统运行的，可以随时处理，而NMI收到的信号是必须要立刻处理，NMI收到信号后，一切其他的工作都失去了意义，先把这个中断处理了才是重中之重。
 首先我们介绍可屏蔽中断，可屏蔽中断是指的由INTR线传递的中断信号，外部设备如硬盘、网卡等发出的中断都是可屏蔽中断。可屏蔽的意思是此外部设备发出的中断， CPU 可以不理会，因为它不会让系统右机，所以可以通过 eflags寄存器的 IF 位将所有这些外部设备的中断屏蔽。另外，这些设备都是接在某个中断代理设备的，通过该中断代理也可以单独屏蔽某个设备的中断，这是后话，后面会有详细介绍。
 然后我们介绍不可屏蔽中断，他是由NMI线传递的中断信号，只要这里传递了中断，计算机就说明遭到了严重的问题，必须立刻处理。此时上述eflags寄存器的IF位对他也毫无影响。
@@ -25,7 +25,7 @@ CPU 收到中断后，得知道发生了什么事情才能执行相应的处理�
 3. Abort, 终止，无法修复，操作系统为求自保，只能把该程序从进程表移除
 
 这里给出我们异常与中断的汇总表供大家参考：
-![](http://imgsrc.baidu.com/super/pic/item/a044ad345982b2b70acc5c0174adcbef77099ba0.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/a044ad345982b2b70acc5c0174adcbef77099ba0.jpg)
 
 其中我们的中断向量号的作用类似于选择子，都是某个表的下标。
 
@@ -34,12 +34,12 @@ CPU 收到中断后，得知道发生了什么事情才能执行相应的处理�
 而中断描述符表中不止有中断描述符，还有任务门描述符和陷阱门描述符。而由于所有的描述符都指向了一段程序，这里就体现出来他与GDT的不同，所以在这里的描述符有个另外的名字，那就是“门”。
 所有的门都是8字节，这里我们来回忆一下描述符中的字段类型，type字段指明了该描述符的类型，其中的S位若为1则说明该段为数据段，为0则表示为系统段，咱们这里的门就属于系统段
 这里给出之前门的描述符结构：
-![](http://imgsrc.baidu.com/super/pic/item/c75c10385343fbf2b2148de6f57eca8065388f3e.jpg)
-![](http://imgsrc.baidu.com/super/pic/item/32fa828ba61ea8d3b2195fc1d20a304e251f583f.jpg)
-![](http://imgsrc.baidu.com/super/pic/item/adaf2edda3cc7cd99b181f1c7c01213fb80e9139.jpg)
-![](http://imgsrc.baidu.com/super/pic/item/35a85edf8db1cb13755e17d69854564e92584b3b.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/c75c10385343fbf2b2148de6f57eca8065388f3e.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/32fa828ba61ea8d3b2195fc1d20a304e251f583f.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/adaf2edda3cc7cd99b181f1c7c01213fb80e9139.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/35a85edf8db1cb13755e17d69854564e92584b3b.jpg)
 当然这里为了避免忘记，同时给出之前段描述符的概念结构：
-![](http://imgsrc.baidu.com/super/pic/item/5882b2b7d0a20cf453bb011b33094b36adaf99cf.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/5882b2b7d0a20cf453bb011b33094b36adaf99cf.jpg)
 可以看出这里结构都是类似，只不过有的不同位的功能发生了变化，这也导致了我们的门可以正常放在段描述表或者说中断描述表中了。
 这里提一嘴各门的区别：
 1. 任务门：配合TSS使用实现特权级切换，可存放在GDT，LDT，IDT中,描述符中任务门的type字段二进制为0101
@@ -48,7 +48,7 @@ CPU 收到中断后，得知道发生了什么事情才能执行相应的处理�
 4. 调用门：提供用户进程进入特权0级，其DPL为3，只能用call或jmp指令调用，可以安装在GDT和LDT中，type值为1100
 
 既然内存中应该存在一个IDT供我们使用，所以我们寻找他的方式类似与GDT，也就是说有一个寄存器来存放IDT的物理地址，这个寄存器就是IDTR，下面是IDTR的结构：
-![](http://imgsrc.baidu.com/super/pic/item/d53f8794a4c27d1eeada5b015ed5ad6edcc43872.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/d53f8794a4c27d1eeada5b015ed5ad6edcc43872.jpg)
 其中低16位代表段界限，高32位代表IDT物理地址，16位的表界限可以表示2^16B，也就是64KB，而一个门占8字节，所以一共可以存放64KB/8B = 8192个，这里注意虽然GDT第0表项为全0不可用，但IDT却无此限制，中断向量为0表示除法错。
 同加载GDTR一样，加载IDTR也有个专门的指令--lidt，其用法是
 lidt 48位内存数据
@@ -67,7 +67,7 @@ CPU内： CPU执行该中断向量号对应的中断处理程序
 3. 执行中断处理程序
 特权级检查通过后，将门描述符目标代码段选择子加载到代码段寄存器cs中，把门描述符中的偏移地址加载至EIP中，然后执行中断处理程序。
 过程如下图所示：
-![](http://imgsrc.baidu.com/super/pic/item/55e736d12f2eb9387366193790628535e4dd6fe8.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/55e736d12f2eb9387366193790628535e4dd6fe8.jpg)
 
 中断发生后，eflags中的NT位和TF位会被置0,若中断对应的是中断门，则在进入中断门后eflags的IF位会自动置0以此来防止中断嵌套，但是我们依然可以在中断处理中将IF位打开，我们先前说过修改eflags寄存器的内容只能通过pushf压栈然后恢复栈来修改，但此关系到内存访问了，效率想必是十分低效的，所以处理器专门提供了一个修改IF位的指令（开小灶是吧）。那就是cli和sti，其中cli指令使得IF位为0,sti指令使得IF为1,分别称之为关中断和开中断。
 IF位只能限制外部设备中断，而对其他影响系统正常运行的中断都无效。
@@ -81,19 +81,19 @@ IF位只能限制外部设备中断，而对其他影响系统正常运行的中
 ### 5.中断压栈
 中断发生时，处理器收到一个中断向量，根据该中断向量号在IDT中的偏移，然后找到对应的门然后通过其中的选择子，然后将该选择子移入CS中，再将门描述符中的偏移字段移入EIP。这时由于CS和EIP会被刷新，所以处理器会将被中断的程序的CS和EIP保存到当前中断处理程序使用的栈当中，至于说中断处理用的哪个栈，这里不好说，因为中断在任何特权级下都有可能发生，所以我们除了保存CS，EIP外还需要保存EFLAGS，如果涉及到特权级变化还要压入SS和ESP寄存器，下面来介绍寄存器入栈情况以及顺序：
 1. 当处理器通过中断向量找到对应的中断描述符后，比较CPL和中断门描述符中选择子对应目标代码段的DPL对比，若发现向高特权级转移，则需要切换到高特权级的栈，这也意味着当我们执行完中断处理程序后需要恢复旧栈才行。因此处理器先临时保存旧SS和ESP的值，记做SS_old,和ESP_old,然后在TSS中寻找到对应目标代码段同特权级的栈加载到寄存器SS和ESP中，记作SS_new,和ESP_new，再将临时保存的SS_old和ESP_old压栈备份，如图所示：
-![](http://imgsrc.baidu.com/super/pic/item/1c950a7b02087bf48e04382cb7d3572c10dfcf0f.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/1c950a7b02087bf48e04382cb7d3572c10dfcf0f.jpg)
 2. 然后压入EFLAGS寄存器，如下图
-![](http://imgsrc.baidu.com/super/pic/item/f2deb48f8c5494ee05cc60dc68f5e0fe98257e0d.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/f2deb48f8c5494ee05cc60dc68f5e0fe98257e0d.jpg)
 3. 然后因为需要切换代码段，所以也要将CS和EIP保存到栈中进行备份，用以在中断结束后恢复被中断的进程，如下图：
-![](http://imgsrc.baidu.com/super/pic/item/5882b2b7d0a20cf4e358911a33094b36adaf992f.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/5882b2b7d0a20cf4e358911a33094b36adaf992f.jpg)
 4. 某些异常会爆出错误码，这个错误码是用于报告一场是在哪个段上发生的，也就是发生异常的位置，所以错误码中包含选择子等信息。他一般紧跟EIP后入栈，记为ERROR_CODE.如下图：
-![](http://imgsrc.baidu.com/super/pic/item/83025aafa40f4bfba811f191464f78f0f6361835.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/83025aafa40f4bfba811f191464f78f0f6361835.jpg)
 
 处理器执行完中断处理程序后需要返回到被中断进程，也就是使用iret指令进行弹站，这里需要保证上述顺序。如果说有中断错误码，处理器并不知晓，所以这需要我们手动将其跳过，也就是说当我们准备用iret指令返回时当前栈指针必须得指向栈中备份的EIP_old所在的位置，这样才能依次对号入座。
 
 ### 6.中断错误码
 错误码用来指明中断发生在哪个段上，所以说错误码最主要的部分是选择子，这里给出错误码的结构：
-![](http://imgsrc.baidu.com/super/pic/item/9345d688d43f879494a326eb971b0ef41ad53a92.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/9345d688d43f879494a326eb971b0ef41ad53a92.jpg)
 可以看出和选择子有9分的相似（ ，其中我们可以看到他的低2位有所不同，他代表的不是RPL，而是IDT和EXT，这里依次解释
 + EXT表示EXTernal event,即外部事件，用来指明中断源是否来自处理器内部，如果中断源是不可屏蔽中断NMI或外部设备，EXT为1,否则为0。
 + IDT表示选择子是否指向中断描述符表IDT，IDT位为1则表示此选择子指向中断描述符表，否则指向GDT或者是IDT
@@ -110,11 +110,11 @@ IF位只能限制外部设备中断，而对其他影响系统正常运行的中
 Intel处理器共有256个中断，可是8259A只可以管理8个中断，所以他们将多个8259A控制器组合，这里被成为级联。这里n个8259A进行级联可支持7n+1个中断源，级联时之恩那个有一片是主片master，其余均为从片。来自从片的中断只能传递给主片，再由主片传递给CPU。
 每个独立外设所发出的中断只有接在中断请求（IRQ：Interrupt ReQuest）信号线上才会被CPU知晓。
 这里我们来解释什么是级联，由于我们单个8259A芯片只有8个终端请求信号线：IRQ0～IRQ7,这肯定是不够的，所以我们用一种组合的方式来进行扩展，这就类似于我们平时的交换机，如果一个交换机无法支持数量众多的主机相连的话，我们会在交换机上再连个交换机，然后现在就相当与多了很多端口供主机相连，这也就解释了为啥n个控制器可以支持7n+1个中断而不是8n了。如下图：
-![](http://imgsrc.baidu.com/super/pic/item/f9dcd100baa1cd1153a218e5fc12c8fcc2ce2dda.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/f9dcd100baa1cd1153a218e5fc12c8fcc2ce2dda.jpg)
 而我们个人的电脑中一般只有两片8259A芯片，我们同样会将其进行级联，所以共可用中断15个，这里给出家用计算机中的级联结构：
-![](http://imgsrc.baidu.com/super/pic/item/94cad1c8a786c917687938fc8c3d70cf3ac757f8.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/94cad1c8a786c917687938fc8c3d70cf3ac757f8.jpg)
 每个外设发出中断信号他都会以为是发送到了INTR信号线上，但其实他是发给了中断代理芯片，然后再由代理传送信号到CPU的INTR信号线。然后我来介绍8259的内部结构，先给出示意图：
-![](http://imgsrc.baidu.com/super/pic/item/838ba61ea8d3fd1f4e58c8ff754e251f94ca5fa5.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/838ba61ea8d3fd1f4e58c8ff754e251f94ca5fa5.jpg)
 + INT:这是在中断控制器仲裁出中断信号后由此传递给CPU
 + INTA：INT Acknoledge，中断响应信号，位于8259A中，用来接受来此CPU的中断响应信号。
 + IMR：Interrupt Mask Register，中断屏蔽寄存器，宽度为8位，用来屏蔽某个外设中断
@@ -145,30 +145,30 @@ Intel处理器共有256个中断，可是8259A只可以管理8个中断，所以
 之后是个大工程，我们依次来介绍ICW和OCW。
 
 1. ICW1：用来初始化连接方式和中断信号的触发方式。连接方式就是单片或多片，触发方式是指中断请求信号是电平触发还是边沿触发，这里注意ICW1需要写入主片的0x20端口和从片的0xA0端口，结构如下：
-![](http://imgsrc.baidu.com/super/pic/item/71cf3bc79f3df8dccbc0d9548811728b46102871.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/71cf3bc79f3df8dccbc0d9548811728b46102871.jpg)
 其中IC4表示是否要写入ICW4,IC4为1表示需要在后面系融入ICW4,为0则不需要，这里注意x86系统的IC4必须为1，而SNGL表示single，若SNGL为1表示单片，为0表示级联。ADI表示call address inteval，用来设置8085的调用时间间隔，x86不需要设置。LTIM表示level/edge triggered mod，用来设置检测方式，LTIM为0表示边沿触发，为1表示电平触发。
 2. ICW2：用来设置起始中断向量号，注意ICW2需要写入主片0x21端口和从片0xA1端口，结构如下图：
-![](http://imgsrc.baidu.com/super/pic/item/f636afc379310a55e1fe8831f24543a983261018.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/f636afc379310a55e1fe8831f24543a983261018.jpg)
 这里我们只需要设置IRQ0的中断向量号，之后都是依次排开，所以我们只需要写高5位T3～T7,ID0～ID3这低3位不用管，由于我们只填写5位是因为我们IRQ0后面到IRQ7一共有八个中断，所以我们每次给IRQ0分配只需要分配8的倍数就行
 3. ICW3：只有在级联方式下才需要，也就是ICW1中SNGL位为0的情况，结构如下,这里注意ICW3需要写入主片的0x21端口以及从片的0xA1端口：
-![](http://imgsrc.baidu.com/super/pic/item/86d6277f9e2f070858c47cc5ac24b899a801f236.jpg)
-![](http://imgsrc.baidu.com/super/pic/item/3ac79f3df8dcd100a15faee4378b4710b8122f37.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/86d6277f9e2f070858c47cc5ac24b899a801f236.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/3ac79f3df8dcd100a15faee4378b4710b8122f37.jpg)
 对于主片，ICW3中设置1的那一位对应的那一位对应的IRQ接口用于连接从片，若为0则表示外部设备，而对于从片，要设置与主片的连接方式，只需在从片上制定主片用于链接自己的那个IRQ接口就行了。在中断响应的时候，主片会发送与从片做级联的IRQ接口号，所有从片用自己的ICW3低3位和他对比，若一致则认为是发给自己的，这低3位刚好可以表示0～7,就比如说主片与某个从片做级联的是IRQ7,则对应从片的低三位用二进制表示应该为111。从片高5位为0.
 4. ICW4：用于设置8259A的工作模式，当ICW1中IC4为1时才需要设置它，ICW4需要写入主片的0x21端口和从片的0xA1端口，结构如下图所示：
-![](http://imgsrc.baidu.com/super/pic/item/b17eca8065380cd7516bf328e444ad34588281fa.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/b17eca8065380cd7516bf328e444ad34588281fa.jpg)
 其中SFNM表示特殊全嵌套模式，若其为0表示全嵌套模式，为1表示特殊全嵌套模式。BUF表示8259A是否工作在缓冲模式下，为0表示非缓冲，为1相反。当多个8259A级联时，如果工作在缓冲模式下M/S用来规定谁是主片谁是从片，为1表示主片，为0表示从片，若工作在非缓冲模式下，则该位无效。AEOI表示自动结束中断，为0表示非自动，为1表示自动结束中断。缪PM表示微处理器类型，为1表示x86，为0表示8085或8080处理器。
 
 之后我们来介绍OCW的格式。
 1. OCW1：用来屏蔽连接在8259A上的外部设备的中断信号，实际上就是把OCW1写入了IWR寄存器，当然这里的屏蔽还不是最后一道关卡，可能你在这儿允许通过，但是eflags寄存器的IF位为0,则可屏蔽中断会全部关闭，仍然不会将该信号发往CPU，这里注意OCW1要写入主片的0x21或从片的0xA1号端口，结构如下图所示
-![](http://imgsrc.baidu.com/super/pic/item/a8ec8a13632762d074b4f57ae5ec08fa503dc669.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/a8ec8a13632762d074b4f57ae5ec08fa503dc669.jpg)
 2. OCW2：用来设置中断结束方式和优先级模式，注意OCW2要写入到主片的0x20及从片的0xA0端口。下面是其对应的结构:
-![](http://imgsrc.baidu.com/super/pic/item/902397dda144ad349d45d64295a20cf430ad8579.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/902397dda144ad349d45d64295a20cf430ad8579.jpg)
 在OCW2中比较灵活的是有个开关位SL,可以针对某个特定优先级的中断进行操作。OCW2其中的一个作用就是发EOI信号结束中断。如果使SL为1,可以用OCW2的低3位来制定位于ISR寄存器中的哪一个中断被中止，如果SL为0则低三位不起作用，8259A会自动将正在处理的中断结束，也就是把ISR寄存器中优先级最高的位清0。OCW2另外一个作用就是设置优先级控制方式，使用R来设置，若R为0,则表示固定优先级，即接口号越低优先级越高，若R为1则使用循环优先级。如下图：
-![](http://imgsrc.baidu.com/super/pic/item/7af40ad162d9f2d32ac8752aecec8a136227cc1e.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/7af40ad162d9f2d32ac8752aecec8a136227cc1e.jpg)
 此时如果SL为0,初始的优先级次序为IR0>1>2>3>4>>5>6>7,当某级别的中断被处理完成后，他的优先级将会变为最低，将最高优先级传给之前较之第一级的中断需求。另外还可以打开SL开关使得SL为1,再通过低3为设置最低优先级是哪个IRQ接口。然后我们依次来介绍相应位，首先是R，刚刚介绍过，为1表示循环优先级，为0表示固定优先级。SL，Specific Level，表示是否指定优先级，此处SL只是开启低三位开关，若为1则低三位有效，为0则无效。EOI，End of Interrupt，为中断结束命令位，EOI为1则会另ISR相应位清0,这里如果我们手动发送EOI的话表示8259A采用手动结束中断，此时ICW4中的AEOI位为0,下面再给出表格让大家梳理一遍：
-![](http://imgsrc.baidu.com/super/pic/item/7a899e510fb30f247f80bcc68d95d143ac4b03d8.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/7a899e510fb30f247f80bcc68d95d143ac4b03d8.jpg)
 3. OCW3：设定特殊屏蔽方式以及查询方式，注意OCW3要写入主片的0x20端口或从片的0xA0端口，结构如下图所示：
-![](http://imgsrc.baidu.com/super/pic/item/b8389b504fc2d562597e8028a21190ef77c66c85.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/b8389b504fc2d562597e8028a21190ef77c66c85.jpg)
 
 介绍完上述字段，我们这里最后解释一下8259A是如何识别发过来的字段到底是ICW1～4还是OCW1～3呢，每个芯片就俩端口这是该如何识别呢（主片的两个端口为0x20和0x21,从片两个端口为0xA0和0xA1）。我们先总结一下：
 + ICW1和OCW2,OCW3用0x20和0xA0写入
@@ -176,7 +176,7 @@ Intel处理器共有256个中断，可是8259A只可以管理8个中断，所以
 
 由于咱们的ICW必须保证一定次序写入，所以8259A就知道写入端口的数据是什么了。
 而OCW的写入顺序无关，且ICW1和OCW2,OCW3的写入端口相同，所以8259A采用控制字段的第3～4位来唯一确定，如下图：
-![](http://imgsrc.baidu.com/super/pic/item/1e30e924b899a9013f6e0bf358950a7b0308f598.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/1e30e924b899a9013f6e0bf358950a7b0308f598.jpg)
 这样就确保了我们的8259A知道每次发送过来的控制字段是属于哪一类了。
 
 ## 0x02 编写中断处理程序
@@ -433,9 +433,9 @@ dd if=./build/kernel.bin of=./bochs/hd60M.img bs=512 count=200 seek=9 conv=notru
 ```
 lib/
 ├── kernel/
-│   ├── io.h
-│   ├── print.h
-│   └── print.S
+│   ├── io.h
+│   ├── print.h
+│   └── print.S
 ├── stdint.h
 └── user/
 kernel/
@@ -450,7 +450,7 @@ kernel/
 boot/
 ├── assemble.sh*
 ├── include/
-│   └── boot.inc
+│   └── boot.inc
 ├── loader.bin
 ├── loader.S
 ├── mbr.bin
@@ -472,9 +472,9 @@ demo/
 ```
 
 然后我们到bochs里面运行一下试试看，效果如下图：
-![](http://imgsrc.baidu.com/super/pic/item/0ff41bd5ad6eddc44ea4f23e7cdbb6fd536633b7.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/0ff41bd5ad6eddc44ea4f23e7cdbb6fd536633b7.jpg)
 可以看到时钟每次发送中断信号，我们的中断处理程序都会输出一个字符串，我们也可以在bochs中调试命令info idt来查看idt的信息，如下图：
-![](http://imgsrc.baidu.com/super/pic/item/bd315c6034a85edf6832b8e60c540923dc5475bd.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/bd315c6034a85edf6832b8e60c540923dc5475bd.jpg)
 
 ## 0x03 改进中断处理程序
 上面我们都知道，中断处理程序简单的不能再简单，所以这里我们是来写处理程序的，这里我们采用C语言编写然后汇编代码调用C语言函数即可，这样咱们写的也简单点。
@@ -568,10 +568,10 @@ intr_exit:
 ```
 
 这里再给出压栈情况，注意这里无特权变换
-![](http://imgsrc.baidu.com/super/pic/item/279759ee3d6d55fbca903be328224f4a21a4dda5.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/279759ee3d6d55fbca903be328224f4a21a4dda5.jpg)
 
 然后我们像上次一样继续编译运行查看结果：
-![](http://imgsrc.baidu.com/super/pic/item/77094b36acaf2edd1959042cc81001e93801934f.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/77094b36acaf2edd1959042cc81001e93801934f.jpg)
 简直不要太成功，这里可以发现我们确实一直在触发0x20中断向量号的时钟中断
 
 ## 0x04 定时器来力！！
@@ -583,9 +583,9 @@ intr_exit:
 
 而我们介绍的8253是使用倒计时的，这里我们对他编程主要是设置这个值。
 闲话到此为止，我们先来看看8253内部结构：
-![](http://imgsrc.baidu.com/super/pic/item/a2cc7cd98d1001e9846358cafd0e7bec55e7979c.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/a2cc7cd98d1001e9846358cafd0e7bec55e7979c.jpg)
 8253中有3个独立的计数器，分别0～3,他们对应的端口号分别是0x40~0x42，且都是16位大小。下图是独立一个计数器的结构图：
-![](http://imgsrc.baidu.com/super/pic/item/c9fcc3cec3fdfc039c34af7d913f8794a5c226a2.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/c9fcc3cec3fdfc039c34af7d913f8794a5c226a2.jpg)
 计数器本质上是一个减法器，因为咱们是倒计时嘛。每个计数器有三个引脚：
 + CLK，时钟输入信号,这里是指计数器自己的工作节拍，每收到一个这样的信号，计数器的值就减1
 + GATE，门控制输入信号，后面介绍
@@ -597,11 +597,11 @@ intr_exit:
 + 输出锁存寄存器，用于把当前减法计数器中的计数值保存下来
 
 而我们8283中的三个计数器都有自己独特的使命，如下：
-![](http://imgsrc.baidu.com/super/pic/item/35a85edf8db1cb13a8e370d69854564e93584b69.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/35a85edf8db1cb13a8e370d69854564e93584b69.jpg)
 我们这里只需要了解计数器0，他的主要作用是产生时钟信号，这个时钟连接到主片IRQ0引脚上，也就是说计数器0决定了时钟中断信号的频率。
 
 这里我们想要对他进行编程，这就类似与咱们上面对8259A编程，我们首先需要了解一点控制字的格式，他一般是写入操作端口0x43,它是8位寄存器。如下图
-![](http://imgsrc.baidu.com/super/pic/item/a9d3fd1f4134970ac7895cead0cad1c8a6865d79.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/a9d3fd1f4134970ac7895cead0cad1c8a6865d79.jpg)
 这里依次介绍相关字段
 + SC1和SC0：如图，表示计数器0～3
 + RW1和RW2：如图
@@ -609,7 +609,7 @@ intr_exit:
 + BCD：也就是BCD码，用4位二进制来表示十进制，这一位为0表示使用2进制计数，若为1表示使用BCD
 
 上面的M2～M0是表示的工作方式，这里来集中解释一下：
-![](http://imgsrc.baidu.com/super/pic/item/6a63f6246b600c330d45910d5f4c510fd9f9a133.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/6a63f6246b600c330d45910d5f4c510fd9f9a133.jpg)
 之前说了一大通，所以计数器什么时候开始记时呢，有可能会认为是我们写入计数器初始值之后，但实际上不是如此，开始时机与工作方式相关，他需要两个条件:
 1. GATE为高电平，即GATE为1,由硬件控制
 2. 计数器初值写入了减法器，这是由软件out指令来控制的
@@ -678,7 +678,7 @@ void timer_init(){
 ```
 
 感觉这个比之前都简单得多，之后我们照常编译链接，最后执行效果如下图：
-![](http://imgsrc.baidu.com/super/pic/item/8b13632762d0f703fcaadb194dfa513d2797c5df.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/8b13632762d0f703fcaadb194dfa513d2797c5df.jpg)
 有没有发现没啥变化，但其实这里图片上看不出来，但确实他的频率被重新设置了，肯定是比以前快的多。
 
 ## 0x06 总结
