@@ -2,13 +2,13 @@
 ### 1.inode节点
 这里过多的基础知识我就不必讲了，上过操作系统课的大伙都知道在目前比较普遍的管理结构就是inode节点了，我们存放在磁盘上的一切文件都是使用inode结点来进行访问的，这里的文件同时包括普通文件与咱们的目录文件，没错在这里万物皆文件，并且所有文件都必须配备一个inode节点以供访问。
 而inode如果是属于普通文件的话，那么他的具体结构如下：
-![](http://imgsrc.baidu.com/super/pic/item/8ad4b31c8701a18b78d8f789db2f07082938fec2.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/8ad4b31c8701a18b78d8f789db2f07082938fec2.jpg)
 这里的结构十分经典，总共应该是有15个索引，前12个是直接索引，如果不够的话，那么第13个是一级间接索引，依次类推。
 而如果说咱们的inode节点是属于目录文件，则其中的数据块索引指针指向的会是一系列目录项。这里目录项结构如下：
-![](http://imgsrc.baidu.com/super/pic/item/f703738da9773912400660a7bd198618377ae2d1.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/f703738da9773912400660a7bd198618377ae2d1.jpg)
 其中的inode编号的含义其实就是存放inode节点的数组中本inode节点的下标，这样方便存储和访问。
 而inode节点中其他地方就存储一些属性相关的数据，整体可以用下面这个图来表示：
-![](http://imgsrc.baidu.com/super/pic/item/8c1001e93901213fd0baab1a11e736d12e2e956f.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/8c1001e93901213fd0baab1a11e736d12e2e956f.jpg)
 
 ### 2.超级块与文件系统布局
 这里我们来解释一个重要的概念，那就是超级块。
@@ -22,11 +22,11 @@
 4. 空闲块位图地址及大小
 
 上述几类信息就在超级块中保存，因此一个简单的超级块结构如下：
-![](http://imgsrc.baidu.com/super/pic/item/d058ccbf6c81800a8f226cc8f43533fa838b4735.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/d058ccbf6c81800a8f226cc8f43533fa838b4735.jpg)
 这里的魔数用来区别于其他文件系统的类型。
 我们的超级块是用来存放文件系统的配置信息，所以说超级块就必须固定一个位置了，我们将他固定在个分区的第二个扇区，通常占用一个扇区的大小。
 下面给出经典的ext2文件系统布局，我们也是仿照其来实现的：
-![](http://imgsrc.baidu.com/super/pic/item/f7246b600c338744df81cbba140fd9f9d62aa0b4.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/f7246b600c338744df81cbba140fd9f9d62aa0b4.jpg)
 
 ## 0x01 创建文件系统
 ### 1.创建超级块，inode，目录项
@@ -320,9 +320,9 @@ void filesys_init(){
 
 ```
 上面代码所做的工作就是简单的搜索每个分区是否存在文件系统，如果不存在就进行初始化，下面我们第一次编译运行来看看情况
-![](http://imgsrc.baidu.com/super/pic/item/fcfaaf51f3deb48ffc4c4918b51f3a292cf578cb.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/fcfaaf51f3deb48ffc4c4918b51f3a292cf578cb.jpg)
 可以看到咱们对于hd80M,img的各个分区已经进行了初始化，理论上我们对其进行初始化过后，硬盘上就应该永远存留着我们已经格式化好的文件系统了，我们再次运行试试看
-![](http://imgsrc.baidu.com/super/pic/item/6c224f4a20a4462310d54da4dd22720e0df3d7dd.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/6c224f4a20a4462310d54da4dd22720e0df3d7dd.jpg)
 发现确实没有再次进行初始化，因为初始化程序检测到每个分区已经存在了。
 
 ### 3.挂载分区
@@ -395,7 +395,7 @@ static bool mount_partition(struct list_elem* pelem, int arg){
 
 ```
 
-![](http://imgsrc.baidu.com/super/pic/item/79f0f736afc37931dc5e6defaec4b74542a911c6.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/79f0f736afc37931dc5e6defaec4b74542a911c6.jpg)
 可以看到也是十分正常的装载了sdb1
 
 ## 0x02 文件描述符
@@ -403,7 +403,7 @@ static bool mount_partition(struct list_elem* pelem, int arg){
 我们的这个文件描述符与inode并不是同一个东西，inode是操作系统为自己的文件系统准备的数据结构，他用于文件存储的管理，与用户关系不大，而文件描述符才是与用户息息相关的。
 咱们读写文件的时候，inode给咱们用户提供的信息仅仅是有哪些数据块，可是我们对文件的操作指针都是任意的，就拿读来说，我们读取文件都是通过多次读一小部分来进行的，在读的过程中我们必须维护一个文件偏移指针，所以为了保证下一次读的正确性，我们必须要时刻记录这个偏移指针的值，我们就将类似的倾向于用户的信息保存到文件描述符当中
 在linux中，我们读写函数文件时都是操作文件描述符来完成的，而对于一个进程来说，我们打开了某个文件就是拥有了一个文件描述符，这个描述符对应了一个inode结点，然后通过inode节点来获取文件，每个进程中的PCB就保存着一个数组，用他来指向每个文件结构，也就是文件描述符，这里我给个图让大家方便理解：
-![](http://imgsrc.baidu.com/super/pic/item/8326cffc1e178a8266e29466b303738da877e81f.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/8326cffc1e178a8266e29466b303738da877e81f.jpg)
 
 我们来简单梳理一下找到文件的过程：
 1. 某进程把文件描述符作为参数提交给文件系统
