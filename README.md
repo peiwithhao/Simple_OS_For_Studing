@@ -2,23 +2,23 @@
 ## 0x00 基础知识们
 今天我们来介绍一个新的知识那就是线程，大家如果有开发经验的话应该对这个线程都熟悉的，咱们都会通过多线程来提升我们处理器的效率，也提高了咱们程序运行的效率。这里的多线程默认是指并发，而不是并行，真正的并行是同一时间有多个线程并排运作，而并发是指在一段极短的时间内，多个线程交替使用，给人的感觉就好像这几个线程都是一起在运行。
 所以我们采取的做法就是每个任务在处理器上执行一小会儿，然后使用调度器切换下一个任务到处理器上面运行。
-![](http://imgsrc.baidu.com/super/pic/item/e824b899a9014c087174a7604f7b02087af4f4ac.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/e824b899a9014c087174a7604f7b02087af4f4ac.jpg)
 上面的图说明了任务调度的情况，咱们的调度器也就是实现这一功能。简单来说，咱们的调度器就是操作系统中用于把任务轮流调度上处理器运行的一个软件模块，是操作系统的一部分。调度器在内核中维护一个任务表，然后按照一定的算法将该任务放到处理器上面执行。正是有了任务调度器，多任务操作系统才能够实现。
 但是多线程也不是全是好处，就跟动态链接与静态链接一样，他俩都有优势与劣势，只不过看谁的优势更大而已。这里如果实现多线程，确实满足了多个线程同时推进，避免了一个运行时间短的线程始终等待一个运行时间长的线程，但是我们使用多线程在切换线程的时候会产生一些切换的时间，这让我也想到前面我们讲过的流水线了，如果设计的不合理，则流水线还不如指令串行。
-![](http://imgsrc.baidu.com/super/pic/item/dc54564e9258d109157126779458ccbf6d814d61.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/dc54564e9258d109157126779458ccbf6d814d61.jpg)
 
 ### 1.线程的概念
 线程如果我们简单来讲，在高级语言中，线程是运行函数的另一种方式，也就是说，构建一套线程方法，就比如C语言库中的POSIX线程库，让函数在此线程中调用，然后处理器去执行这个函数，因此线程实际的功能就是相当与调用了这个函数，从而让函数执行。
 说到这里，那他和普通的函数调用有什么区别呢。
 在一般的函数调用中，它是随着此函数所在的调度单元一块上处理器运行的，这个调度单元可能是这个进程，但也可能是某个线程，你可以当他是顺便执行的，也就是说咱们的处理器并不是单独的执行他。可是在线程就不一样了，他可以为一般的代码快创造他所依赖的上下文环境，从而让代码快具有独立性，因此在原理上线程能使一段函数成为调度单元，从而被调度器专门调度到处理器上执行，也就是说摆脱了函数调用时的依赖性，而真正翻身做了主人。
-![](http://imgsrc.baidu.com/super/pic/item/30adcbef76094b36d9569528e6cc7cd98c109d2b.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/30adcbef76094b36d9569528e6cc7cd98c109d2b.jpg)
 
 这里我默认大家曾经学过操作系统这门课程，就简单的给个结论，如果开启了多线程，那么线程就是CPU调度的最小单位，而CPU资源分配的最小单位是进程而不是线程，也就是说线程是没有属于自己的资源的，他的一切可用资源都是从所属进程获取的，地址空间也是。
 这里进程、线程、资源之间的关系可以这样表达:进程 = 线程 + 资源
 
 ### 2.进程、线程的状态
 这里给出现在常用的状态，当然别忘了咱们的工作是写操作系统，所以这里咱们的状态可以自定义，并不一定非得按照他的来，这里只是给个参考。
-![](http://imgsrc.baidu.com/super/pic/item/f636afc379310a554a285731f24543a9832610e3.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/f636afc379310a554a285731f24543a9832610e3.jpg)
 + 就绪态是指该进程已经在可调度队列当中，随时可以调度他到处理器上
 + 运行态指该进程正在处理器上运行
 + 阻塞态是值该进程需要某种资源但是暂未得到，此时他无法加入调度队列进行调度
@@ -27,10 +27,10 @@
 
 ### 3.进程的身份证——PCB
 操作系统为每个进程提供了一个PCB,Process Control Block，也就是程序控制块，用来记录与此进程相关的信息，比如进程状态、PID、优先级等。一般的PCB结构如下图所示：
-![](http://imgsrc.baidu.com/super/pic/item/7dd98d1001e939015a5904fb3eec54e737d19698.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/7dd98d1001e939015a5904fb3eec54e737d19698.jpg)
 
 每个进程都有自己的PCB，所有PCB放到一张表格中维护，这就是进程表，调度器可以根据这张进程表来选择上处理器运行的进程。因此PCB又可以称为进程表项。进程表如下：
-![](http://imgsrc.baidu.com/super/pic/item/728da9773912b31bb75445ecc318367adab4e13f.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/728da9773912b31bb75445ecc318367adab4e13f.jpg)
 
 这里里面几个比较重要的字段我拿出来单独说：
 + 进程状态：是指上面所说的运行、就绪、阻塞等，这样调度器就知道他是否可以进行调度
@@ -138,7 +138,7 @@ struct task_struct{
 
 我们继续来回顾一下函数调用发生的情况：
 首先我们的eip指向的是被调用函数kernel_thread函数，当kernel_thread函数开始执行的时候，我们的栈应该如下：
-![](http://imgsrc.baidu.com/super/pic/item/cb8065380cd79123f1e91eb1e8345982b3b780ee.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/cb8065380cd79123f1e91eb1e8345982b3b780ee.jpg)
 
 而我们kernel_thread函数的大致作用如下：
 ```
@@ -244,9 +244,9 @@ void k_thread_a(void* arg){
 ```
 
 这里我们简单的构造一个打印的线程，这里我们还没实现线程的切换，所以这里就只有这个线程在不断运行输出字符串，我们编译链接后上虚拟机查看一下效果：
-![](http://imgsrc.baidu.com/super/pic/item/b219ebc4b74543a97baf0f095b178a82b80114bb.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/b219ebc4b74543a97baf0f095b178a82b80114bb.jpg)
 可以看到成功打印出来了argA，然后我们也可以看到这里确实也出现了一个申请的块，而这个块内就存放着咱们这个线程的PCB。
-![](http://imgsrc.baidu.com/super/pic/item/5fdf8db1cb13495492ad1da1134e9258d0094a40.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/5fdf8db1cb13495492ad1da1134e9258d0094a40.jpg)
 
 ## 0x02 核心数据结构，双向链表
 相信大家肯定很多人学过数据结构这门课程，今天我们就来实现他，并将其运用在实战当中，首先我们定义一些头文件，为lib/kernel/list.h
@@ -531,7 +531,7 @@ static void make_main_thread(void){
 ```
 
 上面咱们添加的代码是将main函数封装成了一个线程，实际上也就是为其加上PCB而已，然后修改了一些初始化代码，让其中的tag标签链接到咱们之前写的双向链表当中。如图：
-![](http://imgsrc.baidu.com/super/pic/item/738b4710b912c8fc03760708b9039245d788216a.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/738b4710b912c8fc03760708b9039245d788216a.jpg)
 
 ---
 在咱们实现了进化版线程创建后，我们需要开始今天的重点，也就是线程调度了。
@@ -772,7 +772,7 @@ void k_thread_b(void* arg){
 
 
 这里遇到个问题，这几天实在没法子，是这样的，在之前我们实现中断的时候，可以看到我们的8253计数器是成功发出中断的，但是这两天我重新编译发现他突然无法发出时钟中断了，且这里绝对不是代码的问题，我将之前中断部分的代码重新编译一遍发现就无法发起时钟中断，但是我使用以前的编译结果就是正确的，这两天排查的很是烦人，且使用不同版本的gcc也没进展，换环境也无法成功，这里首先给出运行成功的正确结果，我估计得过几天才再来解决这个问题，这两天搞得心力憔悴
-![](http://imgsrc.baidu.com/super/pic/item/d1a20cf431adcbef32e0a1c3e9af2edda2cc9f1b.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/d1a20cf431adcbef32e0a1c3e9af2edda2cc9f1b.jpg)
 
 
 ## 0x04 总结
@@ -793,16 +793,16 @@ static void frequency_set(uint8_t counter_port, uint8_t counter_no, uint8_t rwl,
 ```
 
 然后这里给出我自己的运行结果
-![](http://imgsrc.baidu.com/super/pic/item/c8177f3e6709c93d05773f31da3df8dcd000546a.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/c8177f3e6709c93d05773f31da3df8dcd000546a.jpg)
 
 这里我们看到了最上面是我们修改了的普通中断处理函数的异常报错，也就是"#GP General Protection Exception".这正是我们之前定义的中断名，这里我们可以去看看为什么爆出这个异常，所以我们进入bochs调试看看，我们可以使用show int来打印程序中所出现的中断，但是由于我们目前没有实现软中断，所以我们只需要在bochs调试页面使用show extint指令，这里我们可以首先使用nm指令查看thread_start的地址使得我们尽量距离GP异常近一点。
 
-![](http://imgsrc.baidu.com/super/pic/item/c9fcc3cec3fdfc031050d37e913f8794a5c226cf.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/c9fcc3cec3fdfc031050d37e913f8794a5c226cf.jpg)
 
 然后我们就先在这儿打断点然后使用show extint定位GP异常的地方就好了,下面就是我定位到的发生异常的指令
-![](http://imgsrc.baidu.com/super/pic/item/a8ec8a13632762d015199479e5ec08fa503dc6d5.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/a8ec8a13632762d015199479e5ec08fa503dc6d5.jpg)
 从这里我们可以看出，他是将cl移到gs的选择子当中，也就是咱们的视频段选择子，也就是咱们的显存段，但是我们可以回忆一下我们的显存段的物理地址范围为0xb8000~0xbffff，总共大小为0x7fff,而我们这里的ebx也就是偏移他是0x9f9e明显超出了这个范围，所以他明显越界了所以爆出了GP异常
 这里我们使用x来查看内存情况，发现确实提示越界
 
-![](http://imgsrc.baidu.com/super/pic/item/a1ec08fa513d2697b1c9389b10fbb2fb4216d8da.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/a1ec08fa513d2697b1c9389b10fbb2fb4216d8da.jpg)
 至于这里为什么产生这样的错误，我们在之后同步环节进行讲解。
