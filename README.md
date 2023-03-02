@@ -20,7 +20,7 @@
 
 ### 2. 硬盘控制端口
 对于硬盘控制器而言，其IO模式与显卡不同，在使用显卡时，我们是使用了统一编址，但是在硬盘控制器下，其使用的是独立编制，这里有不懂的地方可以参考上一节。以下我给出硬盘控制器主要端口寄存器信息：
-![](http://imgsrc.baidu.com/super/pic/item/79f0f736afc379311dd12eedaec4b74542a911bc.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/79f0f736afc379311dd12eedaec4b74542a911bc.jpg)
 由上表可知端口分为两组，即为Commend Block registers和Control Block registers，其中Commend Block registers用来向硬盘驱动器写入命令字或从硬盘控制器中读出硬盘状态（因为硬盘会通过发送自己的状态到硬盘控制器，这种状态有且不限于正在忙，空闲等），而Control Block registers用来控制硬盘工作状态，这有点类似于咱们机组中学到的控制/状态寄存器，在应试教育中他俩是和到一起的，而事实上他俩之中Control Block registers也确实精简了许多，他们俩的功能越来越揉和，所以一下主要介绍Commend Block registers
 ### 3. 主盘、从盘、通道
 这里首先给出几个基本概念解释：
@@ -39,13 +39,13 @@
 现在我们来继续介绍上面三个端口，可知这三个端口都是8位，总共有24bit，但他如何表示28位呢，别慌，他把这后面4位放到别的寄存器了，之后碰到该寄存器我会继续解释。
 
 + 0x1F6在读写操作时都作为devie寄存器，他充当一个杂项寄存器，可以发现他的宽度是8位，其中低4位用来存储LBA28模式下剩余的4位，而第四位指定通道上的主盘和从盘，第6位来设置启用LBA还是CHS模式，其他位固定为1.这里给出他的结构示意
-![](http://imgsrc.baidu.com/super/pic/item/50da81cb39dbb6fda79a71e24c24ab18962b3735.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/50da81cb39dbb6fda79a71e24c24ab18962b3735.jpg)
 + 0x1F7端口在读操作时用作Status寄存器，他用来给出硬盘的状态信息，第0位为ERR位，代表命令出错，具体原因存放在上面的Error寄存器中，地3位为data request位，若为1则表示硬盘将数据已经存放好，第6位为DRDY，表示硬盘就绪，这位是表示硬盘正常，可以继续执行一些指令。第七位为BSY位，为1则表示硬盘正忙。而在写硬盘时，该端口充当command寄存器，存放需要硬盘执行的命令，在咱们的系统中，主要使用三个命令：
 1. identify：0xEC，硬盘识别
 2. read sector: 0x20,读扇区
 3. write sector: 0x30，写扇区
 这里给出0x1F7端口的结构：
-![](http://imgsrc.baidu.com/super/pic/item/86d6277f9e2f0708191bbdc4ac24b899a801f2dc.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/86d6277f9e2f0708191bbdc4ac24b899a801f2dc.jpg)
 
 ### 4. 硬盘操作方法
 我们要读取硬盘，大家可能也会想到就是使用in out的IO命令来对端口进行操作，就比如往data寄存器写或读数据，往command寄存器写命令，没错就是这样，但是总得有个先后顺序把，其中我们的顺序必须遵循一个大前提，那就是command寄存器一定要最后写，因为一旦command寄存器被写入那就开始执行命令了。这里给出一个基本顺序供大家参考。
@@ -234,9 +234,9 @@ nams -I include -o loader.bin loader.S
 dd if=./loader.bin of=你的路径/bochs/hd60M.img bs=512 count=1 seek=2 conv=notrunc
 ```
 我们此刻就可以来运行虚拟机了，结果如下图：
-![](http://imgsrc.baidu.com/super/pic/item/bba1cd11728b471067256c0886cec3fdfd0323e8.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/bba1cd11728b471067256c0886cec3fdfd0323e8.jpg)
 这里加入两张图依然是作为对照，证明他在闪烁（狗头
-![](http://imgsrc.baidu.com/super/pic/item/0824ab18972bd407cdc242393e899e510eb309e9.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/0824ab18972bd407cdc242393e899e510eb309e9.jpg)
 
 ## 0x02 总结
 今天操作磁盘的工作或许有点多，但他仍然处于简单的水平，本次的所有源代码依旧在github上面同步更新，分支名为UUMBR
