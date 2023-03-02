@@ -5,10 +5,10 @@
 ### 1. 实模式
 大伙还记得上一布我解释的实模式吗，解释的很短一句但是这并不能概括他所有的意义，这里我再来细细解释。
 这里我先给出几个实模式下寄存器的解释，这图片是嫖的操作系统真像还原的，大伙有兴趣也可以去看看：
-![](http://imgsrc.baidu.com/super/pic/item/6d81800a19d8bc3e6990a30ec78ba61ea9d3455e.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/6d81800a19d8bc3e6990a30ec78ba61ea9d3455e.jpg)
 而这里我会着重讲解一下标志寄存器，也即flags，当然这在上表上面没有写出来，这是因为即将细讲的缘故，首先我们得知道这个flags起着什么作用。这里举个简单的例子，当我们在使用c语言判断语句时，就比如说`if(i>1)`时，咱们经过编译得出的汇编代码实际上就是使用i-1,然后看其得数是否大于0,若是大于0，则会进入if的代码块，若小于0则会跳过这个代码快，但是如何得知他的得数的正负呢，此时我们就可以利用flags寄存器了，这是因为在两数参与运算时，ACC累加器有个特殊的电路，其中两数相加之时会生成一系列标志位，其中就比如ZF，OF等等，这些标志位在不同的情况下有着不同的含义，而这些标志位统统一股脑存在flags寄存器中，其中CF就表示着无符号数之间相互运算是否借位/进位，而OF就表示有符号数运算是否溢出，拿我们刚刚if语句作为例子，此时咱们只需要看flags寄存器中的SF标志位(判断得数为正或负)即可决定分支走向。
 以下是flags寄存器标志位的分布图：
-![](http://imgsrc.baidu.com/super/pic/item/a1ec08fa513d26970437ad9910fbb2fb4216d80a.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/a1ec08fa513d26970437ad9910fbb2fb4216d80a.jpg)
 以下是几个重要标志位的详细解释：
 + CF（Carry Flag）进位标志：用于反映运算是否产生进位或借位。如果运算结果的最高位产生一个进位或借位，则CF置1，否则置0。运算结果的最高位包括字操作的第15位和字节操作的第7位。移位指令也会将 操作数的最高位或最低位移入CF。
 + PF（Parity Flag）奇偶标志：用于反映运算结果低8位中“1”的个数。“1”的个数为偶数，则PF置1，否则置0。
@@ -64,10 +64,10 @@
 
 这里需要注意，在文本模式下也可以打印彩色字符，但是ASCII字符都是一字节大小，如何表示彩色字符呢，这里给出答案我们不用一字节来表示字符，咱们用两字节，咱们两字节的低8位来使用ASCII码（占7位）正常表示，而高八位则用来表示字符的属性，属性结构图如下：
 
-![](http://imgsrc.baidu.com/super/pic/item/b64543a98226cffc370d1876fc014a90f703eacb.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/b64543a98226cffc370d1876fc014a90f703eacb.jpg)
 这里的图片解释的很清楚，RGB大家也应该知道三原色，这里给出几种简单的组合让大家试试。
 
-![](http://imgsrc.baidu.com/super/pic/item/0b7b02087bf40ad12fc46027122c11dfa8ecced6.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/0b7b02087bf40ad12fc46027122c11dfa8ecced6.jpg)
 
 ## 0x01 升级MBR
 这里注意咱们要抛弃BIOS的输出了，这里使用IO来实现打印功能
@@ -91,8 +91,8 @@ dd if=./mbr,bin of=/你的路径/bochs/hd60M.img bs=512 count=1 conv=notrunc
 ```
 
 下面是演示效果,这里给出两张照片是为了显示其在跳动。
-![](http://imgsrc.baidu.com/super/pic/item/95eef01f3a292df5202d0bd1f9315c6035a8730c.jpg)
-![](http://imgsrc.baidu.com/super/pic/item/35a85edf8db1cb1381829bd79854564e93584b0f.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/95eef01f3a292df5202d0bd1f9315c6035a8730c.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/35a85edf8db1cb1381829bd79854564e93584b0f.jpg)
 
 ## 0x02 总结
 今天的环节依旧很简单，主要是基础知识的认识，大伙基本上可以快速上手，还等什么，赶快加入吧（狗头
