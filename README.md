@@ -5,7 +5,7 @@
 2. 传递参数该以何种顺序压栈
 
 这里我就直接给出几个调用规约
-![](http://imgsrc.baidu.com/super/pic/item/14ce36d3d539b600ddee1572ac50352ac75cb7d7.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/14ce36d3d539b600ddee1572ac50352ac75cb7d7.jpg)
 我们的操作系统是采用其中的cdecl规约，这就意味着：
 1. 调用者将所有参数由右至左压栈
 2. 由调用者清理参数所占的栈空间
@@ -22,7 +22,7 @@ man 2 write
 
 这里man 后面的2是来表示查看System Call方面的帮助
 结果如下：
-![](http://imgsrc.baidu.com/super/pic/item/f9dcd100baa1cd113a527fe5fc12c8fcc2ce2d0a.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/f9dcd100baa1cd113a527fe5fc12c8fcc2ce2d0a.jpg)
 而咱们调用“系统调用”有两种方法：
 1. 将系统调用指令封装为C库函数，通过库函数进行系统调用
 2. 直接通过int指令与操作系统通信
@@ -154,14 +154,14 @@ asm_print:
 ### 3.显卡端口简介
 之前还记得我们在loader时期输出文本采用的什么方法吗，这里给大家回忆下，我们之前是直接使用BIOS中断或者是往显存中写入我们的字符，但这好像没什么技术含量。
 之前我们写过点显卡的知识，但是大家是否注意到我们并没有详细解释显卡的各种端口，就如同硬盘控制器那般，之前不讲解照作者的意思是说端口太多权退，所以留在这儿讲解（注意这里大伙也不要慌，这就类似于咱们对硬盘控制器的操作而已，区别就是端口不太一样），这里先给出显卡中的寄存器介绍
-![](http://imgsrc.baidu.com/super/pic/item/1e30e924b899a901d27b54f358950a7b0308f5ad.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/1e30e924b899a901d27b54f358950a7b0308f5ad.jpg)
 如图，寄存器好像也不是很多嘛，但其实这只是目录而已（狗头
 上面的目录其实就是寄存器的分组，前四组寄存器被分成了两类寄存器，即Address Register 和 Data Register。
 这里分组的目的是因为显卡中的端口太多，若一个端口占用一个寄存器的话十分昂贵且浪费，所以采用分组设计，其中Address Register存放着制定数组下标，另一个寄存器则对索引指定的下标元素进行输入输出操作。所以对这类端口的操作就是先指定Address Register的索引值，然后再对Data Register进行操作。
 上图中CRT Controller Register寄存器组中的A（Address Register）和D（Data Register）端口比较特殊，它的端口地址不固定，具体取决于Miscellaneous Output Register寄存器中的Input/Output Address Select字段，如下所示
-![](http://imgsrc.baidu.com/super/pic/item/e850352ac65c1038b1afc107f7119313b17e8926.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/e850352ac65c1038b1afc107f7119313b17e8926.jpg)
 以及其中各字段的英文描述
-![](http://imgsrc.baidu.com/super/pic/item/3812b31bb051f8190ae40c8f9fb44aed2f73e736.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/3812b31bb051f8190ae40c8f9fb44aed2f73e736.jpg)
 这里的I/OAS（Input/Output Address Select）字段不仅影响CRT Controller Resisters寄存器组中的Address 和 Data寄存器，也影响Feature Control register，这里大致解释一下：
 + I/OAS 此位用来选择CRT controller寄存器组的地址
 + 此位为0时：
@@ -170,10 +170,10 @@ CRT寄存器组的端口地址被设置为0x3Bx，结合之前咱们的目录表
 CRT寄存器组的端口地址被设置为0x3Dx，与上述类似
 
 默认情况下。Miscellaneous Oustput Register寄存器的值为0x67,其中可以知道I/OAS位为1,所以咱们就不用管他，照我们上述的端口值操作即可，这里给出CRT Controller Registers的各个寄存器，其他的给出来参考参考，我们主要是讨论CRT
-![](http://imgsrc.baidu.com/super/pic/item/7aec54e736d12f2ebb19a0a50ac2d562843568d2.jpg)
-![](http://imgsrc.baidu.com/super/pic/item/1e30e924b899a901d12a55f358950a7b0308f5dc.jpg)
-![](http://imgsrc.baidu.com/super/pic/item/d53f8794a4c27d1e803f35015ed5ad6edcc438dd.jpg)
-![](http://imgsrc.baidu.com/super/pic/item/bd315c6034a85edf9097f0e60c540923dc5475df.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/7aec54e736d12f2ebb19a0a50ac2d562843568d2.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/1e30e924b899a901d12a55f358950a7b0308f5dc.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/d53f8794a4c27d1e803f35015ed5ad6edcc438dd.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/bd315c6034a85edf9097f0e60c540923dc5475df.jpg)
 
 ### 4.实现单个字符打印
 这里我们先再创建个目录来整理我们编写的库函数，这里定义为lib，lib目录下再定义两个目录，分别为user 和 kernel
@@ -408,7 +408,7 @@ dd if=./kernel.bin of=../bochs/hd60M.img bs=512 count=200 seek=9 conv=notrunc
 ```
 
 最后结果如图：
-![](http://imgsrc.baidu.com/super/pic/item/5366d0160924ab18cb57eaf270fae6cd7a890bb5.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/5366d0160924ab18cb57eaf270fae6cd7a890bb5.jpg)
 很耐思
 
 ### 5.实现打印字符串
@@ -465,7 +465,7 @@ void main(void){
 
 ```
 之后正常编译链接，直接上效果图
-![](http://imgsrc.baidu.com/super/pic/item/ac345982b2b7d0a2e1080f588eef76094a369a36.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/ac345982b2b7d0a2e1080f588eef76094a369a36.jpg)
 可以看到十分成功的打印出了字符串！
 
 ### 6.实现打印整数
@@ -548,7 +548,7 @@ void put_int(uint32_t num);     //以十六进制打印
 ```
 
 然后我们再去内核函数中测试一下，测试代码就不发了
-![](http://imgsrc.baidu.com/super/pic/item/8644ebf81a4c510f11af97df2559252dd52aa588.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/8644ebf81a4c510f11af97df2559252dd52aa588.jpg)
 可以看出字符串，字符，数字，都是正常打印，大成功！
 
 ## 0x02 总结
