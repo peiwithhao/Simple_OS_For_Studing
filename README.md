@@ -3,15 +3,15 @@
 之前咱们已经有了一个虚拟磁盘hd60M.img，但是它只充当了启动盘的作用，仅仅用来存储内核，是个没有文件系统的裸盘。这里我们为了避免冲突，就另外创建一个磁盘专门来存放咱们的文件系统
 ### 1.创建从盘
 回忆一下以前的步骤，我们使用bin/bximage 来创建一个80MB的磁盘作为从盘，如下：
-![](http://imgsrc.baidu.com/super/pic/item/738b4710b912c8fc13c7770bb9039245d78821c4.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/738b4710b912c8fc13c7770bb9039245d78821c4.jpg)
 操作同之前一致，只不过这里我们将大小定为80M，接下来我们的操作就是将所圈的那行添加到bochsrc.disk中，但这里我们先别添加，咱们得先证明他确确实实被装上了，在物理地址0x475处存储着主机上安装的硬盘的数量，它由BIOS进行检测并写入的。这里我们在安装新硬盘之前先来检测一下：
-![](http://imgsrc.baidu.com/super/pic/item/3bf33a87e950352aa07ba4ce1643fbf2b3118bda.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/3bf33a87e950352aa07ba4ce1643fbf2b3118bda.jpg)
 这里可以看到目前仍然是1个磁盘，然后我们将刚刚创建的磁盘的那行配置语句填写在bochrc.disk下方
 ```
 ata0-slave: type=disk, path="hd80M.img", mode=flat
 ```
 这里我们需要将master改为slave让他作为从盘。添加后我们再来到bochs当中检测:
-![](http://imgsrc.baidu.com/super/pic/item/472309f7905298223738b80592ca7bcb0b46d4e9.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/472309f7905298223738b80592ca7bcb0b46d4e9.jpg)
 这里注意我们再添加一些参数，这里我们修改一下主盘与从盘也就是最后两排的参数：
 ```
 ata0-master: type=disk, path="hd60M.img", mode=flat, cylinders=121, heads=16, spt=63
@@ -45,22 +45,22 @@ ata0-slave: type=disk, path="hd80M.img", mode=flat, cylinders=162, heads=16, spt
 fdisk -l ./hd80M.img
 ```
 来查看硬盘信息
-![](http://imgsrc.baidu.com/super/pic/item/b3b7d0a20cf431adb8b2ccff0e36acaf2fdd9890.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/b3b7d0a20cf431adb8b2ccff0e36acaf2fdd9890.jpg)
 2. 然后正式开始分区：
-![](http://imgsrc.baidu.com/super/pic/item/dbb44aed2e738bd4a17f3df7e48b87d6267ff99e.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/dbb44aed2e738bd4a17f3df7e48b87d6267ff99e.jpg)
 这里有个command输入，我们先输入m来查看一下帮助手册
 3. 看到我标亮的区域，新建一个分区，这里我们接着输入n试试
-![](http://imgsrc.baidu.com/super/pic/item/b3119313b07eca800d54b621d42397dda04483a7.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/b3119313b07eca800d54b621d42397dda04483a7.jpg)
 这里会发现并没有设置柱面等信息，所以我们暂且ctrl+c退出设置，我们再输入x来进入专业模式
-![](http://imgsrc.baidu.com/super/pic/item/adaf2edda3cc7cd9f76abb1f7c01213fb90e91b5.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/adaf2edda3cc7cd9f76abb1f7c01213fb90e91b5.jpg)
 然后我们看到了可以设置磁头数和柱面数，这里我们依次选择然后输入咱们配置中的数字就行了
-![](http://imgsrc.baidu.com/super/pic/item/5fdf8db1cb134954a85d67a2134e9258d0094ab1.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/5fdf8db1cb134954a85d67a2134e9258d0094ab1.jpg)
 4. 然后我们使用n来创建分区
-![](http://imgsrc.baidu.com/super/pic/item/77094b36acaf2edddb55c62fc81001e938019354.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/77094b36acaf2edddb55c62fc81001e938019354.jpg)
 这里我们使用n分别创建了两个分区，一个1号主分区，还有一个4号扩展分区，大伙配置看我的步骤就行，然后我们使用p指令来查看硬盘分区信息。接下来我们再键入n指令来创建分区的话他就会默认创建扩展分区中的子分区了，配置如下
-![](http://imgsrc.baidu.com/super/pic/item/0dd7912397dda144c09de374f7b7d0a20df48664.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/0dd7912397dda144c09de374f7b7d0a20df48664.jpg)
 5. 我们再使用w指令来保存设置，然后再使用fdisk来查看硬盘信息
-![](http://imgsrc.baidu.com/super/pic/item/d1a20cf431adcbef02a6f1c0e9af2edda2cc9f62.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/d1a20cf431adcbef02a6f1c0e9af2edda2cc9f62.jpg)
 
 ### 3.分区表
 这里的分区表也就是Disk Partition Table,简称DPT，是由多个分区元信息汇成的表，表中每一个表项都对应一个分区。最初的磁盘分区表位于MBR当中，我们最开始讲MBR的时候就已经说过他的结构，这里我们再来重新回忆一下：
@@ -72,7 +72,7 @@ fdisk -l ./hd80M.img
 上面说了每个子分区也是当作一个硬盘来看待的，所以子分区同上面的结构也是一致的，首先就是1块EBR（真实硬盘叫做MBR）所占的一个块，然后后面跟一些空闲快（这里空闲是因为同属于EBR的磁道不能跨柱面存在），其中MBR和EBR的结构是一致的，MBR只有一个，EBR理论上可以有无数个。
 由于扩展分区采用链式分区表，所以EBR中分区表地一个分区表项用来描述所包含的逻辑分区的元信息，第二分区表项用来描述下一个子扩展分区的地址，第三、第四表项暂未用到。位于EBR中的分区表相当于链表中的节点，地一个分区表项存放的是分区数据，第二个分区表项存放的是后继分区的指针。
 这里注意我们的前两个分区表项都是指向一个分区的起始地址，第一个表项是指向的是该逻辑分区最开始的山区，这里被称作操作系统引导扇区，即OBR引导扇区。第二个分区表项指向下一个子扩展分区的EBR引导扇区。下面给出单个分区表项的结构
-![](http://imgsrc.baidu.com/super/pic/item/d8f9d72a6059252d9bd195c2719b033b5ab5b936.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/d8f9d72a6059252d9bd195c2719b033b5ab5b936.jpg)
 其中OBR在咱们这儿简单来说就是引导程序所处的分区，里面一般都存放着咱们的内核加载程序Loader。
 这里我们还需要解释一下“分区起始偏移地址”和“分区容量扇区数”
 1. “分区起始偏移地址”是指相对于本分区所依赖的上层对象（也就是说将该子分区包含在内的总扩展分区的起始扇区LBA地址），当然如果本分区就是主分区或者总扩展分区的话，那么该值为0。
@@ -106,7 +106,7 @@ dawn@dawn-virtual-machine:~/repos/OS_learning$ ./xxd.sh bochs/hd80M.img 0 512
 
 这里我将用画图来给大家演示整个分区的步骤：
 首先我们通过上面的表来给大家简单介绍一下目前的硬盘结构：
-![](http://imgsrc.baidu.com/super/pic/item/c8177f3e6709c93dcb6f8531da3df8dcd0005453.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/c8177f3e6709c93dcb6f8531da3df8dcd0005453.jpg)
 
 这里只是大致给出来主分区和扩展分区，这里我们再来查看一下扩展分区中的子分区，首先我们将0x4800乘512得到0x900000，然后查看512字节如下
 ```
@@ -129,7 +129,7 @@ dawn@dawn-virtual-machine:~/repos/OS_learning$ ./xxd.sh bochs/hd80M.img 0x900000
 
 子扩展分区是在总扩展分区中创建的，所以子扩展分区的绝对扇区LBA地址=总扩展分区的绝对扇区LBA地址+子扩展分区的偏移扇区LBA地址
 而逻辑分区是在子扩展分区中创建的，逻辑分区的绝对LBA地址=子扩展分区绝对扇区LBA地址+逻辑分区的偏移扇区LBA地址
-![](http://imgsrc.baidu.com/super/pic/item/203fb80e7bec54e74b3891d8fc389b504ec26a24.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/203fb80e7bec54e74b3891d8fc389b504ec26a24.jpg)
 后面的子扩展分区都是依次类推，这里我就不多讲了。
 
 ## 0x01 编写硬盘驱动程序
@@ -600,7 +600,7 @@ void ide_init(){
 ### 5.获取硬盘信息，扫描分区表
 这里我们使用两个方案来验证咱们的硬盘驱动程序，第一是向硬盘发出identify命令获取硬盘信息，第二是扫描分区表
 identify命令是0xec，用于获取硬盘参数，下面列出我们需要的参数
-![](http://imgsrc.baidu.com/super/pic/item/0e2442a7d933c89533846ebd941373f08302007a.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/0e2442a7d933c89533846ebd941373f08302007a.jpg)
 由于涉及到分区的管理，所以咱们得给每个分区命个名，这里我们采用linux的方案,也就是[x]d[y][n],中括号中的值是可选的，如下：
 + x：表示硬盘分类，h代表IDE磁盘，s代表SCSI磁盘
 + d：表示disk
@@ -785,7 +785,7 @@ void ide_init(){
 ```
 
 代码比较长，但是注释十分详细，这里我们只有一个通道，且该通道上面的主盘是咱们的hd60M.img是个裸盘，只用来存放内核程序，不用实现文件系统，所已并不需要像我们这样分区，因此只需要修改咱们的从盘hd80M.img即可。这里我们初始化后看看效果
-![](http://imgsrc.baidu.com/super/pic/item/0824ab18972bd407e201233b3e899e510eb30936.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/0824ab18972bd407e201233b3e899e510eb30936.jpg)
 我们发现十分完美的打印出来了咱们目前的磁盘信息。
 
 ## 0x02 总结
