@@ -814,14 +814,14 @@ int main(void){
 ![](https://img-blog.csdnimg.cn/e12586616bb347899e2de215e7494aea.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzM3NTAwNTE2,size_16,color_FFFFFF,t_70)
 这里我本人的运行第一次忘记截图了，所以用的别的师傅的图，但是我们基本的信息都是一致的。
 然后当我们再次运行main线程的时候，他会提示文件已经存在了，如下：
-![](http://imgsrc.baidu.com/super/pic/item/6f061d950a7b0208a91b012627d9f2d3562cc823.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/6f061d950a7b0208a91b012627d9f2d3562cc823.jpg)
 这个图就是我第二次运行内核所跑出的结果，他提示咱们已经正确创建过/file1了，我们再到磁盘上面检查一下看是否确实正确创建了。
 为了到磁盘上面查找信息，所以咱们拿之前初始化的时候打印的信息来确定
 ![](https://img-blog.csdnimg.cn/b60a5d55a0a54a8ea7bac09b73038118.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzM3NTAwNTE2,size_16,color_FFFFFF,t_70)
 
 这里可以看到咱们的data扇区最开始是在0xA67，且咱们的根目录最开始就会放入磁盘数据扇区最开始的地方，所以这里应该是存放的咱们的根目录，其中存放着一些目录项，因此我们通过xxd脚本进行查看
 0xA67用十进制来表示就是2663扇区，所以便宜量用字节来表示就是2663×512 = 1363456
-![](http://imgsrc.baidu.com/super/pic/item/5d6034a85edf8db1864545a34c23dd54574e7489.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/5d6034a85edf8db1864545a34c23dd54574e7489.jpg)
 这里我们看到了我们自己创建的文件，十分成功,除了file1,其实咱们也可以看到"."和".."，他的ASCII码为0x2E和0x2E2E,也就恰好表示了当前目录与父目录
 
 
@@ -938,7 +938,7 @@ int main(void){
 
 ```
 
-![](http://imgsrc.baidu.com/super/pic/item/8718367adab44aed93f78623f61c8701a08bfbb8.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/8718367adab44aed93f78623f61c8701a08bfbb8.jpg)
 
 ## 0x03 总结
 就目前来说咱们对于文件系统还远远没有完成，可见他的代码量之多，现在仅仅实现了创建文件以及打开和关闭文件这几个基本功能，还有比较重要的将在之后讲解。
