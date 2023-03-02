@@ -11,17 +11,17 @@
 这里我们并不是说要在保护模式之下进行BIOS中断操作，今天我们所讲的只是一个小demo而已，所以我们先放下上一篇的知识，咱们先在实模式下检测了物理内存再进入保护模式。这里我们将这三个方法依次介绍（如果其中一个用不了就用别的）
 ### 1.利用BIOS中断0x15子功能0xe820获取内存
 据说这是最灵活的内存获取方式,说他比较灵活是因为他返回的信息比较丰富，而返回丰富的信息就表示我们需要用一种格式结构来组织这些数据。而内存信息的内容是用地址范围描述符来描述的，用于存储这种描述符的结构称之为地址范围描述符(Address Range Descriptor Structure,ARDS),格式如下：
-![](http://imgsrc.baidu.com/super/pic/item/9d82d158ccbf6c81fb15f32cf93eb13532fa40d0.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/9d82d158ccbf6c81fb15f32cf93eb13532fa40d0.jpg)
 上述的字段从偏移也可以看出每个占4字节，其中含义大家可以有表得知，这里详细介绍其中的TYPE字段，具体意义如下：
-![](http://imgsrc.baidu.com/super/pic/item/3c6d55fbb2fb43166516a5be65a4462308f7d3ed.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/3c6d55fbb2fb43166516a5be65a4462308f7d3ed.jpg)
 而BIOS按照上述类型来返回内存信息是因为这段内存可能为一下几种情况：
 + 系统的ROM
 + ROM用到了这部分内存
 + 设备内存映射到了这部分内存
 + 由于某种原因，这段内存不适合标准设备使用
 而由于我们是在32位环境下，所以我么只需要用到低32位属性属性，也就是BaseAddrLow 和 LengthLow就可以了，当然我们在调用BIOS中断不仅仅使得EAX或AX里面有相应的功能号，我们还需要通过其他寄存器传入一系列参数，下面给出具体示例：
-![](http://imgsrc.baidu.com/super/pic/item/023b5bb5c9ea15ce1eea3ecdf3003af33b87b2ea.jpg)
-![](http://imgsrc.baidu.com/super/pic/item/b64543a98226cffcce2b6176fc014a90f703eaf6.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/023b5bb5c9ea15ce1eea3ecdf3003af33b87b2ea.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/b64543a98226cffcce2b6176fc014a90f703eaf6.jpg)
 这里值得注意的参数寄存器有ECX和ES:DI,其中ECX是指缓冲区大小，ES:DI是指缓冲区指针，被调用函数将所写内容写入该缓冲区，然后记录写入内容大小然后记录在缓冲区大小寄存器中。注意这里调用者是传入的期待BIOS写入大小，而被调用者则是往ECX写入实际大小。此中断的调用步骤如下：
 1. 填写好调用前函数寄存器
 2. 执行中断调用int 0x15
@@ -29,13 +29,13 @@
 
 ### 2.利用BIOS中断0x15子功能0xe801获取内存
 这个子功能整体来说不算强，但也值得我们来学习，他虽然说最大只能识别4GB内存，但是对咱们32位地址总线足够了，但是有点特殊的就是这种方法检测到的内存是分别放到两组寄存器中的。低于15MB的内存以1KB为单位来记录，单位数量在AX和CX中记录，其中AX和CX的值是一样的，所以在15MB空间以下的实际内存容量=AX×1024.AX，CX最大值为0x3c00,即0x3c00**** 1024 =15MB.而16MB～4GB是以64KB为单位大小来记录的，单位数量在BX、DX中存储，其中这俩内容一样，跟上述AX、CX类似。下面给出输入时寄存器以及输出时寄存器的功能和作用：
-![](http://imgsrc.baidu.com/super/pic/item/8326cffc1e178a826b9ba164b303738da877e854.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/8326cffc1e178a826b9ba164b303738da877e854.jpg)
 这里我们大多数人都会意识到这两个问题：
 1. 为什么要分“前15MB”和“16MB～4GB”。
 2. 为什么要设两个内容相同的单位量寄存器，就是说AX=CX,BX=DX.
 
 为了解释地一个问题，我们在这里给出经过测试后的结果，这里如何测试不重要，我们会在最后实战，所以这里我们只关注结果即可
-![](http://imgsrc.baidu.com/super/pic/item/c8177f3e6709c93dfe7ed033da3df8dcd0005462.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/c8177f3e6709c93dfe7ed033da3df8dcd0005462.jpg)
 这里我们观看表头，发现实际物理内存和检测到的内存大小总是相差1MB，这是为什么呢
 这里实际上是万恶的历史遗留问题，这是由于在80286版本由于有24位地址线，即可表示16MB的内存空间，其中低15MB用来正常作为内存使用，而高1MB是留给一些ISA设备作为缓冲区使用，到了现在由于为了向前兼容，所以这1MB还是被空了出来，造成一种内存空洞的现象。
 所以说但我们检查内存大小大于等于16MB时，其中AX×1024必然小于等于15MB，而BX×64K必然大于0,所以我们在这种情况下是可以检查出这个历史遗留的1MB的内存空洞，但若是我们检查内存小于16MB的时候，我们所检查的内容范围就会小于实际内存1MB。
@@ -47,7 +47,7 @@
 
 ### 3. 利用BIOS中断Ox15子功能Ox88获取内存
 这里就是最后一个子功能了，他使用简单，获取的东西也简单，他只能识别到最大64MB的内存，即使内存容量大于64MB，也只会显示63MB，这里为啥又少了1MB呢，这是因为此中断只能显示1MB之上的内存，所以我们在检测之后需要加上1MB，现在懂了为啥说第一种灵活了吧，这第二种第三种都有点毛病，这里像之前一样给出传递参数
-![](http://imgsrc.baidu.com/super/pic/item/dbb44aed2e738bd4532a6bf5e48b87d6267ff9e8.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/dbb44aed2e738bd4532a6bf5e48b87d6267ff9e8.jpg)
 调用步骤如下：
 1. 将AH寄存器写入0x88
 2. 执行中断调用 int 0x15
@@ -184,7 +184,7 @@ ata0-master: type=disk, path="hd60M.img", mode=flat
 
 ```
 可以看到内存设置为512MB，我们在开启bochs查看是否如此。
-![](http://imgsrc.baidu.com/super/pic/item/77094b36acaf2edd986c8b2dc81001e938019351.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/77094b36acaf2edd986c8b2dc81001e938019351.jpg)
 发现果然如此，这个0x20000000大家用十进制表示会发现确实为512MB。
 
 ## 0x02 总结
