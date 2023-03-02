@@ -12,7 +12,7 @@
 ## 0x01 如何使用本项目
 由于这是个阶段性项目，所以我是按照自己博客中的阶段来创建分支，大家可以从自己的阶段来判断切换哪个分支查看源码
 可以通过branch转换分支，我每一章都新建一个分支，方便大家不同阶段来查看，就比如当前是main分支，我们只需要点击切换即可
-![](http://imgsrc.baidu.com/super/pic/item/3ac79f3df8dcd1003d523ae5378b4710b8122f2c.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/3ac79f3df8dcd1003d523ae5378b4710b8122f2c.jpg)
 
 当然大伙也可以fork了本项目然后到本地用git进行切换
 
