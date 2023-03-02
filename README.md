@@ -7,11 +7,11 @@
 
 ### 2.一级页表
 在我们没有使用分页机制的时候，我们采用的仍然是系统自带的分段方式，也就是依靠段地址：段内偏移来进行地址选择，且该地址仍然是物理地址，寻址过程如图：
-![](http://imgsrc.baidu.com/super/pic/item/34fae6cd7b899e51ad12f1d007a7d933c9950d52.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/34fae6cd7b899e51ad12f1d007a7d933c9950d52.jpg)
 而我们开启分页机制之后，我们程序员所使用的地址就变为了虚拟地址，然后我们的寻址过程就变成如下图：
-![](http://imgsrc.baidu.com/super/pic/item/d8f9d72a6059252dda8dd6c0719b033b5ab5b958.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/d8f9d72a6059252dda8dd6c0719b033b5ab5b958.jpg)
 我们使用4GB虚拟内存，首先会将其分为大小一致的一堆页，而这个页面大小一般定为4KB，也就是说在32位地址中，高20位为页地址，而低12位为页内地址.在我们本来的程序中是进行了分段的操作，但是载入物理内存的过程中就会进行分页而打乱顺序，此时就需要用到页表，也表中保存的也就是一个个映射，保证你按顺序访问虚拟地址，他会给出想对应的物理地址。
-![](http://imgsrc.baidu.com/super/pic/item/eac4b74543a982267340e0e3cf82b9014b90eb76.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/eac4b74543a982267340e0e3cf82b9014b90eb76.jpg)
 所以我们就需要一个页表来建立这层映射关系，也表中每个页表项就保存着一个真实物理地址。但是光有页表还不行，我们还需要找得到他，所以我们还需要一个额外的寄存器来保存这个页表在物理地址中的位置。这个寄存器就是控制寄存器CR3.
 这里为了防止大家看蒙，我来梳理一下寻址过程：
 1. 首先我们拥有想要访问的虚拟地址
@@ -19,13 +19,13 @@
 3. 我们找到cr3寄存器中的页表首地址，然后加上我们刚刚取到的偏移再乘上4,(这是因为一个页表项占4字节),我们访问该物理地址就会得到另一个物理地址
 4. 刚刚从页表当中得到的物理地址是我们真正想要访问的页地址，此时我们再加上虚拟地址的低12位，也就是页内地址，这样我们就得到了我们真正想访问的地址了。
 
-![](http://imgsrc.baidu.com/super/pic/item/562c11dfa9ec8a1384d19c24b203918fa1ecc028.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/562c11dfa9ec8a1384d19c24b203918fa1ecc028.jpg)
 
 ### 3.二级页表
 二级页表同一级页表类似，就是中间又加了一层而已，这里提出二级页表的原因是由于最高级页表必须在内存，但是我们若只采用一级的话，常驻内存的页表会十分巨大，所以我们需要再加上一级页表（这里应该被叫做页目录）用来减少内存消耗，我们在一级页表是采用了高20位来表示页表项的便宜，这里我们二级页表将其对半分开，高10位用作页目录偏移，剩下的10位用作页表偏移。分配情况如下图所示:
-![](http://imgsrc.baidu.com/super/pic/item/b8014a90f603738d6b63c6e6f61bb051f919ecce.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/b8014a90f603738d6b63c6e6f61bb051f919ecce.jpg)
 其中页目录项之于页目录，页表项之于页表，就如同段描述符之于全局描述表一样，下面给出这俩的具体结构：
-![](http://imgsrc.baidu.com/super/pic/item/a686c9177f3e6709b0228f3b7ec79f3df9dc55d0.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/a686c9177f3e6709b0228f3b7ec79f3df9dc55d0.jpg)
 这里我们可以看到并不是说表项全是地址，他还有很多别的标志位，其中表项保存地址只用了20位，但为什么不是32位呢，因为咱们只需要高20位，也就是页的首地址，而页都是以0x1000为单位的，所以低12位肯定为0,就不需要保存啦，接下来介绍每个标志位的含义：
 + P位，Present，类似段描述符，表示是否存在，为1表示存在于物理内存
 + RW, Read/Write,读写位，为1则表示可读写
@@ -44,7 +44,7 @@
 3. 将CR0的PG位置1
 
 其中第二步我们需要了解一个CR3寄存器的结构，大家不要急：
-![](http://imgsrc.baidu.com/super/pic/item/6609c93d70cf3bc7e3e707289400baa1cc112a0b.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/6609c93d70cf3bc7e3e707289400baa1cc112a0b.jpg)
 CR3寄存器被用来存放页表的首地址，所以他还有个更响亮的名字：页目录基址寄存器（Page Directory Base Register,PDBR）
 
 ---
@@ -119,10 +119,10 @@ setup_page:
 
 ```
 在上面的注释解释的已经十分清楚了，上述代码做的事我来简述一下，大家就可以更加顺畅的理解。首先咱们是在0x100000的物理地址构建页目录，该页目录后面咱们就紧挨着存放页表，下面给出图片示意
-![](http://imgsrc.baidu.com/super/pic/item/86d6277f9e2f0708e7d31bc5ac24b899a801f225.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/86d6277f9e2f0708e7d31bc5ac24b899a801f225.jpg)
 而由于距离页目录偏移0xc00的地方之后，就属于了高1G，这里可以通过简单的计算得出来，0 + 0xc00/4 * 2^22 = 0xc0000000,这里刚好可以得出咱们内核存放的最低地址。
 所以说我们首先将页目录偏移0,以及偏移0xc00的地方填入我们的地一个页表地址，由于咱们页目录和第i一个页表挨着存放，所以第0个页表地址应该为0x101000,如下图：
-![](http://imgsrc.baidu.com/super/pic/item/0dd7912397dda1448f3b5c77f7b7d0a20df486c0.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/0dd7912397dda1448f3b5c77f7b7d0a20df486c0.jpg)
 然后我们就构建页表项，此时我们虽然有一整页，但是我们只需要分配低1MB内存即可，因为咱们的内核就只需要用到这1MB而已，他并不是很大，此时我们沿着物理地址从0开始填入页表项，这里注意由于咱们的目录项第0位和第0xc00偏移的目录项都指向了这第0个页表，所以他俩这里的地址映射到的是同一快内存。
 再之后我们就可以创建内核的其他目录项，这里的意义我么留做以后讲解，现在我们就是挨个填上页表地址而已。
 
@@ -165,9 +165,9 @@ setup_page:
 ```
 
 上面的注释十分详细，这里我们再来看看结果，
-![](http://imgsrc.baidu.com/super/pic/item/d50735fae6cd7b8904740a464a2442a7d8330ede.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/d50735fae6cd7b8904740a464a2442a7d8330ede.jpg)
 可以看到确实打印的是V了，这证明我们在修改视频段描述符后他正确通过虚拟地址转换为了物理地址然后实现了打印，这里我们可以再来看看gdt的内容是否变化：
-![](http://imgsrc.baidu.com/super/pic/item/7aec54e736d12f2e81129ea50ac2d562843568db.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/7aec54e736d12f2e81129ea50ac2d562843568db.jpg)
 这里清楚的看到咱们的gdt初始地址已经存在与内核范围内了，VIDEO 描述符同样。
 
 ## 0x02 使用虚拟地址访问页表
@@ -176,7 +176,7 @@ setup_page:
 mov [PAGE_DIR_TABLE_POS + 4092], eax      ;使得最后一个目录项地址指向页目录表自己的地址
 ```
 这里我们来先看看目前咱们程序的虚拟地址以及物理地址的映射关系：
-![](http://imgsrc.baidu.com/super/pic/item/b17eca8065380cd78eb49228e444ad3458828148.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/b17eca8065380cd78eb49228e444ad3458828148.jpg)
 这里有五对映射，是不是有点奇怪，难道说刚刚我们的代码建立了五对映射吗，我没注意到啊根本，实际上不是说我们自主构建的，而是由于访问机制的问题，让程序以为咱们构造了五对映射，这里我们依次讲解：
 ### 1.0x00000000~0x000fffff
 这段虚拟内存映射到了咱们物理地址的首1MB位置，这与我们上面代码构造的一致
@@ -211,9 +211,9 @@ gcc -c -o kernel/main.o kernel/main.c
 ```
 这里我们选择先生成目标文件而不是可执行文件，针对于这两者之间的差距我这里推荐一本好书，那就是《程序员的自我修养——链接，装载与库》，不得不说这本书写的是真好，之前学PWN也是看着这个书才摸清了点门路，作为程序员我觉得这本书里面的知识是必须得知晓的。
 我们可以使用file命令来查看文件的属性，这里也可以看到是relocatable，表示可重定位文件
-![](http://imgsrc.baidu.com/super/pic/item/5d6034a85edf8db198e94fa14c23dd54574e742b.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/5d6034a85edf8db198e94fa14c23dd54574e742b.jpg)
 而可重定位文件中的符号还没“定位”，我们可以通过nm命令来查看文件中的符号以及地址情况
-![](http://imgsrc.baidu.com/super/pic/item/9345d688d43f8794213d7beb971b0ef41ad53a30.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/9345d688d43f8794213d7beb971b0ef41ad53a30.jpg)
 可以看到该文件确实只包含一个符号，那就是main，且地址为0
 这里我们不直接生成可执行文件是因为我们目前还需要自己来为其设置虚拟初始地址，这里我们使用linux自带的链接器ld进行链接
 ```
@@ -225,11 +225,11 @@ ld kernel/main.o -Ttext 0xc0001500 -e main -o kernel/kernel.bin
 + -e:指定程序的起始地址
 
 这里的e参数需要特别解释一下，我们先去掉这个参数来看效果
-![](http://imgsrc.baidu.com/super/pic/item/37d3d539b6003af32a97eea5702ac65c1138b6c1.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/37d3d539b6003af32a97eea5702ac65c1138b6c1.jpg)
 这里报出一个错误就是找不到入口符号_start
 一个程序总该有个入口地址，这个地址表示该程序从哪里开始执行，所以这个-e参数就是指定程序从哪儿开始执行，在这里由于我们的程序过于简单，没有_start符号，而链接器一般入口地址是给的_start所以这里会报错，因此我们在这儿将入口地址设置为main符号就可以了。（或者说你把main函数名换成_start也行，这样程序中就只有一个_start符号了）
 我们用file命令来查看生成的kernel.bin文件发现成功生成了可执行文件（excutable）
-![](http://imgsrc.baidu.com/super/pic/item/0df3d7ca7bcb0a460501b9fc2e63f6246a60afd0.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/0df3d7ca7bcb0a460501b9fc2e63f6246a60afd0.jpg)
 今天内核就到这儿，下一篇讲解简单内核的编写以及elf文件结构
 
 ## 0x04 总结
