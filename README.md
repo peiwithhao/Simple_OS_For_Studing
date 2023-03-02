@@ -210,7 +210,7 @@ all : mk_dir build hd
 ```
 
 然后我们直接使用make all 命令来进行编译，接着我们直接打开bochs看看效果：
-![](http://imgsrc.baidu.com/super/pic/item/48540923dd54564e5e5b43fcf6de9c82d1584f3d.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/48540923dd54564e5e5b43fcf6de9c82d1584f3d.jpg)
 可以看到确实实现了断言，打印了我们的文件名以及函数名还有行数等
 
 ## 0x01 实现字符串操作
@@ -239,14 +239,14 @@ uint32_t strchrs(const char* str, uint8_t ch);      //计算相同字符数量
 这里给出的是lib目录下的string.h，这里没给出string.c是因为就是普通的业务代码，写在这儿纯属占位置了没意义，大家可以按照string.h的函数声明先自己实现一下，完整源码到github上面烤吧，就在文末。
 当我们编写完毕之后就去咱们的main.c里面试一试我们的函数，当然这里记得在先前的makefile里面添加依赖，如果上面makefile大伙跟着打一遍就能知道其中的含义了，当然这也是建立在你花20分钟去了解了makefile语法。
 这里我选择拿strcat作为测试，我在main函数中定义两个字符传分别是hello 和 world，然后拼接，效果如下：
-![](http://imgsrc.baidu.com/super/pic/item/d52a2834349b033b213a5f1f50ce36d3d439bd41.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/d52a2834349b033b213a5f1f50ce36d3d439bd41.jpg)
 可以看到在ASSERT之前我们成功拼接了hello 和 world字符串，这说明咱们的努力没有白费。
 
 ## 0x02 位图bitmap的实现
 这里位图相信大家有点印象，我记得我在讲解特权级知识点的时候说过IO位图，他一般放在TSS的头顶上，这里我们实现位图是因为要进行资源管理。
 而这里的位图也是一样的，他实际上就是一串二进制bit位，他的每一位都有两种状态那就是0和1,这里就拿分页来举例子，我们的位图一个bit就代表一个页，若这个页被分配出去，那我们就将该bit位置1,否额为0。
 所以位图就是通过这样的方法来管理内存资源的。如下图所示:
-![](http://imgsrc.baidu.com/super/pic/item/9f2f070828381f30d6872e6cec014c086f06f05d.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/9f2f070828381f30d6872e6cec014c086f06f05d.jpg)
 
 基础知识讲完，我们现在立即来实现，讲究的就是一个效率;
 这里首先给出定义在kernel目录下的bitmap.h，这里先给出头文件是让大家先看看位图的数据结构
@@ -360,12 +360,12 @@ void bitmap_set(struct bitmap* btmp, uint32_t bit_idx, int8_t value){
 
 ---
 首先咱们来讨论物理内存地址池。这里我们知道咱们的程序和内核都是运行在物理内存之中的，因此我们再次划分，将物理内存地址池再划分为用户物理内存池和内核物理内存池
-![](http://imgsrc.baidu.com/super/pic/item/b21c8701a18b87d6129205da420828381e30fd27.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/b21c8701a18b87d6129205da420828381e30fd27.jpg)
 为了图方便，我们将内存池的划分对半砍，如上图
 咱们接着来说虚拟内存地址池，这里我们都知道。用户程序的地址是在链接过程就已经定下来了，而由于使用的是虚拟地址，也就是说不同进程之间的地址选择互不干涉，但程序在运行的过程中会有着动态内存的申请，比如说malloc，free等，这样我们就必须向程序返回一个虚拟内存块，但是如何知道哪些是空闲可以分配的呢，所以说这里我们也需要有虚拟内存地址池。
 而虽然说内核程序完全可以自己随便找地方存，但是这样一定会存在些不可预料的错误，因此内核也需要通过内核管理系统申请内存，所以这里我们也需要有内核的虚拟地址池。当他们申请内存的时候，首先从虚拟地址池分配虚拟地址，再从物理地址池中分配物理内存，然后在内核将这两种地址建立好映射关系。
 如下：
-![](http://imgsrc.baidu.com/super/pic/item/d058ccbf6c81800ad3eb20cbf43533fa838b47ed.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/d058ccbf6c81800ad3eb20cbf43533fa838b47ed.jpg)
 
 ### 2.实现
 然后这里给出对应的头文件，我们定义为kernel/memory.h
@@ -496,7 +496,7 @@ void mem_init(){
 
 ```
 这里的初始化入口当然也是由咱们之前编写的kernel/init.c来进行调用啦，所以这里我们来看看执行情况
-![](http://imgsrc.baidu.com/super/pic/item/a044ad345982b2b75075a60174adcbef77099b09.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/a044ad345982b2b75075a60174adcbef77099b09.jpg)
 可以发现这里我们的内核物理内存池起始地址也确实是在咱们的页目录以及内核页表之后，也就是0x200000那儿，十分成功！！！
 ## 0x04 分配页内存
 上一节咱们已经成功构建了位图，内存池且将他们初始化了，这里我们继续进行下一步工作，得使用他们了，这里我先给出memory.h改进的代码
@@ -598,7 +598,7 @@ int main(void){
 ```
 
 这里我们是在main函数里面申请了三个虚拟页,然后我们打印一下我们的申请的虚拟页首地址，我们进入调试界面查看是否有对应的映射
-![](http://imgsrc.baidu.com/super/pic/item/a50f4bfbfbedab6402e7d605b236afc378311e59.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/a50f4bfbfbedab6402e7d605b236afc378311e59.jpg)
 大家可以看到这里刚好就多了三个页大小的映射，这证明咱们已经正确的进行了映射，简直不要太激动，这里我们就已经实现了初步的内存管理了！！！
 
 
