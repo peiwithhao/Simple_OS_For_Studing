@@ -54,10 +54,10 @@ void k_thread_b(void* arg){
 
 ```
 
-![](http://imgsrc.baidu.com/super/pic/item/0e2442a7d933c8954ca7a5bd941373f08302001e.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/0e2442a7d933c8954ca7a5bd941373f08302001e.jpg)
 这里发现运行是完全没问题的，并且也不会报出GP异常，这里我再来解释一下GP异常的发生。
 我们在上一节的末尾是给出了产生GP异常的直接原因的，那就是偏移地址超过了咱们预定的范围，如下：
-![](http://imgsrc.baidu.com/super/pic/item/a8ec8a13632762d015199479e5ec08fa503dc6d5.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/a8ec8a13632762d015199479e5ec08fa503dc6d5.jpg)
 这里可以发现他这条指令是位于咱们print.S中的.put_other底下的一条指令：
 ```
 .put_other:
@@ -307,30 +307,30 @@ void console_put_int(uint32_t num){
 ```
 
 这里大家也可以直观的看到他其实就是封装了我们的锁处理而已，此时我们再将其初始化操作放入init.c中,然后我们的main函数进行输出的时候就是用console_put_str等函数即可，此时是他内部帮咱们实现了互斥机制，我们上机实现一下发现确实正确无误。
-![](http://imgsrc.baidu.com/super/pic/item/0dd7912397dda144aaaa7974f7b7d0a20df48650.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/0dd7912397dda144aaaa7974f7b7d0a20df48650.jpg)
 但是这里我的gcc9.4编译的话还是会有GP问题，这里我就直接同作者的环境保持一致使用gcc4.4编译发现一遍过，建议大家也保持环境一致。
 
 ## 0x03 从键盘获取输入
 我们上面已经实现了正常的多线程输出，但我们今天的工作还有输入，所以我们需要稍微了解一下键盘输入的过程，这里我简单讲解一下，我们的键盘内部存在着一个叫做键盘编码器的芯片，这个芯片实际上就是向键盘控制器报告哪个建被按下，按键是否弹起，通常是Intel 8048或兼容芯片，而键盘控制器一般位于主板，通常是Intel 8042或兼容芯片.具体结构如下图：
-![](http://imgsrc.baidu.com/super/pic/item/bf096b63f6246b60eecea6b2aef81a4c500fa230.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/bf096b63f6246b60eecea6b2aef81a4c500fa230.jpg)
 
 也就是当我们键盘按键的时候，8048会维护一个键值对的表，我们所按的键对应的扫描码会传给8042芯片，然后8042向8259A发送中断信号，这样处理器就会去执行键盘中断处理程序。而这个中断处理程序就是由我们自己实现。
 这里的扫描码又分为两类，一个是叫做通码，指的是按下按键产生的扫描码，还一个是断码，指的是松开按键产生的扫描码。
 由于我们根据不同的编码方案，键盘扫描码分为三类（注意这里并不是指ASCII码，而是单指标识没一个键的码，就比如说空格的ASCII码是0x20,但是扫描码却是0x39，我们中断处理程序就是要将扫描码转化为ASCII码进行输出），这里我们规定使用第一类，但是如果说咱们的键盘使用的是第二类或第三类怎么办呢，这个也并不需要我们关心，因为8042存在的意义之一就是兼容这三套方案，也就是说即使我们键盘是第二类方案，他也会转换为第一类方案进行信号传递。
 下面就是第一套键盘扫描码：
-![](http://imgsrc.baidu.com/super/pic/item/4e4a20a4462309f7454bbad4370e0cf3d6cad6d4.jpg)
-![](http://imgsrc.baidu.com/super/pic/item/0824ab18972bd4074fe7c43b3e899e510eb309d7.jpg)
-![](http://imgsrc.baidu.com/super/pic/item/7a899e510fb30f24c286fbc58d95d143ac4b03d3.jpg)
-![](http://imgsrc.baidu.com/super/pic/item/5366d0160924ab18ef0ff6f170fae6cd7a890bde.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/4e4a20a4462309f7454bbad4370e0cf3d6cad6d4.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/0824ab18972bd4074fe7c43b3e899e510eb309d7.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/7a899e510fb30f24c286fbc58d95d143ac4b03d3.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/5366d0160924ab18ef0ff6f170fae6cd7a890bde.jpg)
 
 我们可以观察到一般通码和断码都是1字节大小，且断码 = 通码 + 0x80， 这里是因为一般咱们的扫描码的最高1位用来标识是通码还是断码，若是0则表示通码，为1则表示断码。
 为了让我们可以获取击键的过程，我们将每一次击键过程分为“按下”，“按下保持”，“弹起”三个阶段，其中每次8048向8042发送扫描码的时候，8042都会向8059A发起中断并且将扫描码保存在自己的缓冲区中，此时再调用我们准备好的键盘中断处理程序，从8042缓冲区获得传递来的扫描码。
 下面给出第一套扫描码的更加直观图：
-![](http://imgsrc.baidu.com/super/pic/item/503d269759ee3d6d983c900d06166d224e4ade7a.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/503d269759ee3d6d983c900d06166d224e4ade7a.jpg)
 
 ---
 说完一些键盘的基本知识，我们现在来简单介绍一下8042,他本身比较简单，我们只使用了他的一个端口接收扫描码而已，他有4个8位寄存器，如下：
-![](http://imgsrc.baidu.com/super/pic/item/0b46f21fbe096b6329f3499649338744eaf8ac0a.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/0b46f21fbe096b6329f3499649338744eaf8ac0a.jpg)
 四个寄存器共用两个端口，说明在不同场合下同一个端口有不同的作用，这里咱们已经熟门熟路了应该，这里图上面表示的很清楚，也就是当CPU读0x64的时候，这个端口反映的是状态寄存器，反映了8048的工作状态，而当CPU向0x64端口写入的时候则表明了即将发给8048的一些控制命令，而0x60端口则分别是写入和读出扫描码而已。这里我们主要介绍一下0x64端口：
 状态寄存器，只读：
 + 0：为1表示输出缓冲区寄存器已满，处理器通过in指令后自动置0
@@ -426,7 +426,7 @@ void keyboard_init(){
 
 这里的中断处理程序十分简单，也就是接收键盘输入然后打印K字符，我们直接上bochs查看:
 
-![](http://imgsrc.baidu.com/super/pic/item/8718367adab44aed89d5a822f61c8701a08bfb59.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/8718367adab44aed89d5a822f61c8701a08bfb59.jpg)
 图片可能看不太明白，但是确实实现了键盘中断，当我任意按键的时候，屏幕会输出字符’k‘,但是你如果尝试了会发现为啥我按一个键他出来两个甚至好几个K呢，这是因为你按下跟弹出是两个中断，有的通码和断码各有2字节，此时你按下加弹出他会产生4次中断，也就是打印4个K。
 接下来我们改写一下中断处理程序，我们将其改为打印扫描码。
 ```
@@ -439,7 +439,7 @@ static void intr_keyboard_handler(void){
 }
 
 ```
-![](http://imgsrc.baidu.com/super/pic/item/03087bf40ad162d94f3574da54dfa9ec8b13cd19.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/03087bf40ad162d94f3574da54dfa9ec8b13cd19.jpg)
 这里我是按了一个A键，我们对比前面的第一套得出确实如此
 
 
@@ -602,14 +602,14 @@ make hd
 
 
 这里注意一点就是静态变量在编译的时候会赋予初值0,所以一开始默认的控制状态码会是false，下面看看我们的运行成果
-![](http://imgsrc.baidu.com/super/pic/item/03087bf40ad162d94f3574da54dfa9ec8b13cd19.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/03087bf40ad162d94f3574da54dfa9ec8b13cd19.jpg)
 我都能在上面打颜文字了应该不必说了吧，大成功!
 
 ## 0x05 环形输入缓冲区
 到目前为止，虽然咱们顺利接受了键盘按键，但其实除了输出这些字符并没有出现什么特别的功能，而我们实现键盘输入很大的一部分就是可以实现咱们的shell功能，这样咱们就可以键入指令然后实现咱们的需求了。
 缓冲区是多个线程共用的共享内存，线程并行访问的时候它难免会出问题，所以我们需要解决这个对于缓冲区的访问操作产生的问题。这里我稍微介绍一下我们即将要设计的环形缓冲区：
 从他的名字可以知道这个就是一个环形结构，事实上也确实如此，他很像咱们数据结构中学到的循环队列，如下图：
-![](http://imgsrc.baidu.com/super/pic/item/503d269759ee3d6dea20820d06166d224e4ade16.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/503d269759ee3d6dea20820d06166d224e4ade16.jpg)
 这里我们定义两个指针来指向其中的头和尾，但注意我们这里的环形是指逻辑上的环形，在物理内存上我们仍然是线性的，不过我们用以下方式来使得其从逻辑上来看是环形队列，那就是头指针用来写数据，尾指针用来读数据，这里跟我学的队列是相反的，我之前学的是头指针加1是用来读数据，而尾指针是用来写的，这里刚好反了，不过逻辑仍然一致，这里当我们指针位置加1导致越过了缓冲区范围的时候会进行取余来重新指向缓冲区的开头，这样就形成了环形的错觉。
 接下来我们将唤醒缓冲区定义在device/ioqueue.h 和 device/ioqueue.c中：
 首先是头文件
@@ -730,7 +730,7 @@ void ioq_putchar(struct ioqueue* ioq, char byte){
 这里我们使用了生产者消费者模型，搭配了我们前面写的锁来实现互斥和同步，在每次我们对缓冲区进行操作的时候都需要进行关中断。然后我们在下面进行实战，这里我们需要注意目前咱们仅实现的是单一的生产者消费者的环境，也就是生产者是键盘驱动，消费者是将来的shell，所以本节要将在键盘驱动中处理的字符存入环形缓冲区当中。
 具体修改代码这里由于实在代码当中插入，所以比较难贴出来，因此我在这里就简单讲解一下，首先就是定义一个ioqueue队列，然后在我们输入的时候，首先输出到屏幕的同时也输入到对应的缓冲区，这里我们缓冲区大小为64字节，当我们将缓冲区输入满的时候继续输入就将阻塞自身线程等待消费者唤醒，但注意这里我们并没有构造出消费者，所以最终实现的效果应该就是我们输入了63个字节之后就无法输入了，我们看一下下面的效果
 
-![](http://imgsrc.baidu.com/super/pic/item/4ec2d5628535e5ddf651a21933c6a7efcf1b62f2.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/4ec2d5628535e5ddf651a21933c6a7efcf1b62f2.jpg)
 可以看到确实输入到最后三个字节ccc之后就无法输入了
 
 ---
@@ -798,7 +798,7 @@ void k_thread_b(void* arg){
 ```
 
 这里也就是简单的进行生产者消费者测试，效果应该是我们输入的字符会直接打入缓冲区，然后AB两个线程会争相从缓冲区中取出字符然后打印到屏幕，我们看看效果
-![](http://imgsrc.baidu.com/super/pic/item/8601a18b87d6277f018d35fe6d381f30e824fc5d.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/8601a18b87d6277f018d35fe6d381f30e824fc5d.jpg)
 上面的图是我一直长按K建的效果，这样我就会不断出发键盘中断然后往缓冲区输入字符，这时候两个线程就会不断取出进行输出，从图片中来看确实实现了争相输出
 
 ## 0x06 总结
