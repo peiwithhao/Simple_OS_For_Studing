@@ -4,11 +4,11 @@
 这里我会给出一些当前步骤所需要的必要知识，如果大家想深刻理解的话还是建议我上面说的两个地方去了解。
 ### 1.ELF文件结构
 我们拿到一个文件，我们该从哪儿知道这个文件是什么格式，有多大，什么类型等各种信息呢，可能有的同学会说我们使用检测文件的工具即可，就比如我们上一篇中所说的linux自带的工具file，但是问题是这个file工具又是怎么知道这个文件的格式然后反馈给我们用户的呢，实际上每个文件都会存在有一个文件头，这个文件头里面存放着包含这个文件的各种信息，当然ELF文件也不例外
-![](http://imgsrc.baidu.com/super/pic/item/fc1f4134970a304e4536843f94c8a786c8175cda.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/fc1f4134970a304e4536843f94c8a786c8175cda.jpg)
 目标文件既会参与程序链接又会参与程序执行。出于方便性和效率考虑，根据过程的不同，目标文件格式提供了其内容的两种并行视图，如下：
 ![](https://ctf-wiki.org/executable/elf/structure/figure/object_file_format.png)
 这里我们首先来介绍ELF header部分
-![](http://imgsrc.baidu.com/super/pic/item/9c16fdfaaf51f3de8fa29da1d1eef01f3b2979e6.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/9c16fdfaaf51f3de8fa29da1d1eef01f3b2979e6.jpg)
 上面是介绍了一些关于elf header的数据类型，下面便是具体的数据结构
 ```
 #define EI_NIDENT   16
@@ -32,12 +32,12 @@ typedef struct {
 ```
 十分直观，这里我们来简单介绍一下每个成员变量的含义：
 + 首先来介绍一下文件头中的e__ident数组，下面给出表：
-![](http://imgsrc.baidu.com/super/pic/item/d009b3de9c82d1589e847d74c50a19d8bd3e42f4.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/d009b3de9c82d1589e847d74c50a19d8bd3e42f4.jpg)
 + e_type:占2字节，指示elf目标文件类型，类型如下：
-![](http://imgsrc.baidu.com/super/pic/item/09fa513d269759eee021440ef7fb43166c22df86.jpg)
-![](http://imgsrc.baidu.com/super/pic/item/3ac79f3df8dcd100d7efdce4378b4710b8122f87.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/09fa513d269759eee021440ef7fb43166c22df86.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/3ac79f3df8dcd100d7efdce4378b4710b8122f87.jpg)
 + e_machine:占2字节，指示目标文件需要在哪个机器上才能运行
-![](http://imgsrc.baidu.com/super/pic/item/aec379310a55b3194e97a6b006a98226cefc178c.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/aec379310a55b3194e97a6b006a98226cefc178c.jpg)
 + e_version:占4字节，表示版本信息
 + e_entry:占4字节，表示程序入口地址
 + e_phoff:指明程序头表在文件中的偏移
@@ -66,14 +66,14 @@ typedef struct {
 
 我们还是采用刚刚的讲解方式，这样清楚一点：
 + p_type:表示该段的类型，类型如下
-![](http://imgsrc.baidu.com/super/pic/item/1e30e924b899a9018b9f7ff358950a7b0308f549.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/1e30e924b899a9018b9f7ff358950a7b0308f549.jpg)
 + p_offset:表示本段在文件中的偏移地址
 + p_vaddr:表示本段在虚拟内存中的起始地址
 + p_paddr:仅用于与物理地址相关的系统中，因为 System V忽略用户程序中所有的物理地址，所以此项暂且保留，未设定。
 + p_filesz:表示本段在文件中的大小
 + p_memsz:表示本段子内存中的大小
 + p_flags:指明本段的标志类型，如下：
-![](http://imgsrc.baidu.com/super/pic/item/d52a2834349b033ba414d81f50ce36d3d439bd53.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/d52a2834349b033ba414d81f50ce36d3d439bd53.jpg)
 + p_align:对齐方式
 
 到这里我们所需要的elf文件结构的知识已经结束，如果想了解更多可以参考我文章开头的推荐，实际上弄懂elf文件的结构是一件十分畅快的事情，再次推荐那本《程序员的自我修养——链接、装载与库》
@@ -83,7 +83,7 @@ typedef struct {
 载入之前我们首先回忆一下我们现在已经用过了的空间，这个环节必不可少，因为我们不能把咱们之前写的东西给覆盖了，这样肯定会带来一些莫名其妙的错误。
 咱们先来回忆磁盘，我们在0号磁盘上是打入了MBR，然后写了Loader，这个loader不想和MBR隔太近，于是我们就放在了2号磁盘。
 然后回忆物理硬盘，我们在低1MB中除了可用的空间，我们在0x7c00放入的是MBR，但是这里其实可以覆盖他了，因为他没用了已经（十分功利捏），0x900开始存放的loader，然后我们在0x100000后存放的是页目录以及页表,而由于我们内核将会只存放在低端1MB，所以这里之后就不用管了，这里给出低1MB图片：
-![](http://imgsrc.baidu.com/super/pic/item/7acb0a46f21fbe0984ace7d12e600c338644ad01.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/7acb0a46f21fbe0984ace7d12e600c338644ad01.jpg)
 上面打勾的都是可用区域。
 内核被加载到内存后， loader 还要通过分析其 elf 结构将其展开到新的位置，所以说，内核在内存中有
 两份拷贝，一份是 elf 格式的原文件 kernel.bin ，另一份是loader解析elf格式的 kernel.bin 后在内存中生成的
@@ -193,7 +193,7 @@ enter_kernel:
 gcc -m32 -c main.c -o main.o
 ```
 这里坑就来了，如果我们按照之前的ld方式进行链接会发现他自动生成了这样一个节
-![](http://imgsrc.baidu.com/super/pic/item/203fb80e7bec54e7145c36dbfc389b504ec26a46.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/203fb80e7bec54e7145c36dbfc389b504ec26a46.jpg)
 这里如果我们不管的话，在kernel init部分的mem_cp会报错，所以这里我的解决方案如下：
 1. 一个简单的链接脚本保存为link.script，如下：
 ```
@@ -213,25 +213,25 @@ ld -m elf_i386 main.o -T link.script -Ttext 0xc0001500 -e main -o ./kernel.bin
 strip --remove-section=.note.gnu.property kernel.bin
 ```
 然后我们再用readelf就发现段成功去掉了
-![](http://imgsrc.baidu.com/super/pic/item/c8177f3e6709c93d10512232da3df8dcd0005457.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/c8177f3e6709c93d10512232da3df8dcd0005457.jpg)
 
 之后我们直接打入9号扇区就行啦
 ```
 dd if=./kernel.bin of=../bochs/hd60M.img bs=512 count=200 seek=9 conv=notrunc
 ```
 下面就是咱们目前的内存示意图了：
-![](http://imgsrc.baidu.com/super/pic/item/9f2f070828381f305215a26cec014c086f06f0e3.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/9f2f070828381f305215a26cec014c086f06f0e3.jpg)
 
 ## 0x02 特权级
 计算机里面的一系列指令执行等操作都可以被认为是某个访问者来访问受访者。这里访问者和受访者都有着属于他们自己的特权级，举个简单例子就是假设我们需要开车，此时CPU相当于汽车，我们人就相当与访问者，我们现在想要进入警局获取资料，所以警局就相当与受访者，此时我们人的特权级就可以用警察和群众来表示，如果我们是警察，就刚好可以进警局拿资料，但如果我们是群众，就相当与特权级低于警察，那么我们就无法进警局拿资料了。相信这个例子能帮助你更好的理解特权级的概念。
 
 而我们目前特权级一般有4中情况，分别是0,1,2,3,我们从计算机启动到mbr再到loader以及内核都是处于0级特权级，下面就是各特权级的使命：
-![](http://imgsrc.baidu.com/super/pic/item/38dbb6fd5266d01675e6b7edd22bd40734fa3573.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/38dbb6fd5266d01675e6b7edd22bd40734fa3573.jpg)
 
 对于特权级的基本概念讲解完毕，下面开始介绍一些关于他的基础知识
 ### 1.TSS
 TSS.也就是Task State Segment,任务状态段，她是每个任务都有的结构（任务也就是进程），这里面保存了一些特权级的栈地址等，总共占104字节，下面给出具体结构：
-![](http://imgsrc.baidu.com/super/pic/item/6a63f6246b600c336f97f70d5f4c510fd8f9a10d.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/6a63f6246b600c336f97f70d5f4c510fd8f9a10d.jpg)
 而在这里我们可以看到有esp0,esp1,esp2,从这个名字我们就鞥够看出这是表示的三个栈顶地址，这里为什么有这三个地址呢，是因为在我们切换特权级的时候，我们的栈那是肯定要切换到对应的特权栈的，因为若是栈不切换的话，不同特权级的一些资源都一股脑放一起了，这样不仅十分杂乱而且也需要足够大的栈。还有个问题就是为什么只有三个特权栈呢，这是因为咱们最差就是3号特权，若是咱们切换特权级那就只能切0.1.2了涩，而3号特权栈实际上也就是咱们的用户栈，他的切换是通过保存上下文来进行的。
 所以TSS就是在处理器进入不同特权级的过程中，由硬件到TSS中寻找同特权级的栈，而这个寻找过程不需要咱们知道，因为这是系统级的，他就是知道。
 
@@ -243,7 +243,7 @@ TSS就如同GDT一样也是个数据结构，所以为了知道怎么找到他�
 ### 2.CPL和DPL
 这里我直接简单的叙述这两者的意义以及关系。首先PL就是Privilege Level的意思，也就是CPU若想知道谁的特权高谁的特权低，就得需要一种标识类的东西来记录那个人的特权级，不然在CPU眼里万物都是一样的。
 首先我们回忆一下选择子，这里我再拿出图片让大家想起来
-![](http://imgsrc.baidu.com/super/pic/item/b219ebc4b74543a96c5304085b178a82b80114ae.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/b219ebc4b74543a96c5304085b178a82b80114ae.jpg)
 这里的RPL记录的是请求特权级，也就是访问者的特权级。
 但是话说回来谁是访问者呢，实际上访问者也就是咱们执行的指令，只有指令才有能力访问其他资源，所以只有他才是访问者。所以CS.RPL记录的就是当前执行指令的处理器的特权级。
 然后就是CPL，Current Privilege Level,也就是当前特权级。在CPU运行的是指令，而运行的指令肯定会属于某个段，该代码段的特权级也就是代码段描述符中的DPL也就是当前CPU所处的特权级，这个特权级称为当前特权级也就是CPL，他表示处理器正在执行的代码的特权级别。
@@ -264,10 +264,10 @@ TSS就如同GDT一样也是个数据结构，所以为了知道怎么找到他�
 ### 3.门，调用门与RPL序
 门结构是使得处理器从低特权及转移到高特权级的唯一途径，那么门结构又是什么呢，他就是记录一段程序起始地址的描述符，他用来描述一段程序。只要进入这扇神奇的门，处理器就能够转移到更高的特权级上。
 门描述符和段描述符类似，都是八字节大小的数据结构，下面给出几种不同的门描述符结构：
-![](http://imgsrc.baidu.com/super/pic/item/c75c10385343fbf2b2148de6f57eca8065388f3e.jpg)
-![](http://imgsrc.baidu.com/super/pic/item/32fa828ba61ea8d3b2195fc1d20a304e251f583f.jpg)
-![](http://imgsrc.baidu.com/super/pic/item/adaf2edda3cc7cd99b181f1c7c01213fb80e9139.jpg)
-![](http://imgsrc.baidu.com/super/pic/item/35a85edf8db1cb13755e17d69854564e92584b3b.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/c75c10385343fbf2b2148de6f57eca8065388f3e.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/32fa828ba61ea8d3b2195fc1d20a304e251f583f.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/adaf2edda3cc7cd99b181f1c7c01213fb80e9139.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/35a85edf8db1cb13755e17d69854564e92584b3b.jpg)
 
 这里可以注意到任务门同其他的门有些许差别，其他三门是对应有一段函数，所以这三门函数中需要有选择子和偏移，这样才能找到对应段的某段函数了。
 而任务门描述符可以直接存放在GDT、LDT、IDT（中断描述表，以后的内容）中，调用门可以位于GDT、LDT中，中断门和陷阱门仅位于IDT中
@@ -281,28 +281,28 @@ call和jmp指令后接调用门选择子为参数实现系统调用，call指令
 以int3主动发中断的形式实现低到高，一般是编译器调试时使用
 4. 任务门
 以TSS为单位用来实现任务切换，可以借助中断或指令发起，当中断发生时若对应的中断向量号是任务门，则会发生任务切换，当然也可以像调用门那样通过call和jmp发起
-![](http://imgsrc.baidu.com/super/pic/item/6a63f6246b600c3361c3f50d5f4c510fd8f9a1b9.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/6a63f6246b600c3361c3f50d5f4c510fd8f9a1b9.jpg)
 这个图是真的生动形象，完美解释了我们为什么能通过调用门来进入高特权级，门的特权级是一定要低于我们访问者的特权级的，这样才能保证我们能过调用门，而受访者的特权级一定得高于访问者，不然访问者何必要使用门呢。
 当我们进门之后，处理器将以目标代码段DPL为当前特权级CPL，因此进门之后我们就顺利提高了特权级了。 
 这里我们来介绍一下调用门的内部执行流程，先上个图：
-![](http://imgsrc.baidu.com/super/pic/item/fcfaaf51f3deb48fa2728b1bb51f3a292cf578df.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/fcfaaf51f3deb48fa2728b1bb51f3a292cf578df.jpg)
 结合图片来讲解，首先我们通过call 调用门选择子，这个选择子是指向GDT或者说是LDT中的某个门描述符，我们这里假设其是GDT。当我们找到了门描述符的时候，我们再次通过该门描述符里面的选择子对于GDT再次进行寻找，这里肯定会找到一个段描述符，然后我们再通过门描述符中的偏移来找到对应内核例成的地址。这里相当于是我们去表里找个地址，然后再通过这个地址找到表内另一个地址，有点类似与间接寻址了，大家对应图片仔细理解。
 
 ### 4.调用门的过程保护
 我们直接来了解用户进程中通过call指令调用“调用门”的完整过程。
 1. 首先假设我们要调用某个调用门需要两个参数，也就是说该门描述符中的参数值为2,（格式可以看上面发的图片），此时我们处于特权级3栈，我们想要到特权级0去，所以咱们的栈也会替换到特权级0栈，但在我们调用门前还需要传递两个参数，我们现在将这两个参数压入特权级3栈中，如下图：
-![](http://imgsrc.baidu.com/super/pic/item/ae51f3deb48f8c54ba20d0ea7f292df5e1fe7f07.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/ae51f3deb48f8c54ba20d0ea7f292df5e1fe7f07.jpg)
 
 2. 然后我们就要确定新栈了，这一步我们会根据门描述符中所寻找到的选择子来确定目的代码段的DPL值，这将作为我们日后的CPL值存在，同时我们会通过TSS来确定想对应DPL的栈地址，也就是栈段选择子SS和栈指针ESP，这里记做SS_NEW和ESP_NEW
 
 3. 如果转移后代码段特权级提升，我们就需要换到新栈，此时旧段选择子我们记为SS_OLD 和 ESP_OLD，由于我们这俩值需要保存到新栈中，这是为了方便日后使用retf等指令进行返回恢复旧栈，所以此时我们需要将SS_OLD和ESP_OLD放到某个地方进行保存，例如其他的一些寄存器，然后当我们将SS_NEW 和 ESP_NEW载入到SS和ESP寄存器后，咱们再将他俩压入新栈就行了,如下图：
-![](http://imgsrc.baidu.com/super/pic/item/342ac65c10385343061e92e4d613b07ecb808826.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/342ac65c10385343061e92e4d613b07ecb808826.jpg)
 
 4. 然后我们再将用户栈中保存的参数压入新栈，如图：
-![](http://imgsrc.baidu.com/super/pic/item/4034970a304e251fc73ef13de286c9177e3e532d.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/4034970a304e251fc73ef13de286c9177e3e532d.jpg)
 
 5. 由于调用门描述符中记录的是某个段选择子和偏移，所以此时我们的CS寄存器需要用这个选择子重新加载，所以我们需要像上次一样先将旧的CS和EIP保存到栈上，然后重新加载两个寄存器,如下:
-![](http://imgsrc.baidu.com/super/pic/item/b90e7bec54e736d1341d98cdde504fc2d46269ec.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/b90e7bec54e736d1341d98cdde504fc2d46269ec.jpg)
 
 6. 之后就是按照CS:EIP指示来运行内核例程从而实现特权级从3到0啦
 
@@ -344,7 +344,7 @@ RPL 是谁？ RPL, Request Privilege Level ，请求特权级，这么说有点�
 在保护模式中，“阶级”不仅体现在数据和代码的访问之间，也体现在指令之间
 一方面将指令分级是因为部分指令会对计算机产生巨大的影响所以得小心使用，其中就比如lgdt等
 另一方面体现在IO读写控制上，IO读写特权是由标志寄存器eflags中的IOPL位和TSS中的IO位图决定的，他们用来指定执行IO操作的最小特权级。这里我们来看看eflags寄存器的结构，从中我们可以看到IOPL位：
-![](http://imgsrc.baidu.com/super/pic/item/42166d224f4a20a495592b02d5529822730ed0b4.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/42166d224f4a20a495592b02d5529822730ed0b4.jpg)
 IOPL,I/O Privilege Level,即IO特权级，除了限制当前任务进行IO敏感指令的最低特权级外，还用来决定任务是否允许操作所有的IO端口（也就是说如果该位打开，，便可以访问全部65536个端口）。每个任务都有自己的eflags寄存器，所以每个任务都有自己的IOPL，他表示当前任务要想执行全部IO指令的最低特权级。
 
 而IOPL如何设置呢？
@@ -355,7 +355,7 @@ IOPL,I/O Privilege Level,即IO特权级，除了限制当前任务进行IO敏感
 ## 1.IO位图
 即bit map,他建立的是某种关系，这里感觉就类似表示磁盘空间的位图一样，也就是1个bit代表着一个端口，总共有65536个端口，所以我们共需要65536/8=8192个字节来表示IO位图。若某位bit为0则表示可以访问，若为1则表示禁止访问，这里相信学习过操作系统原理这门课程的同学都不需要多说了。
 IO位图位于TSS中，这里TSS不包括位图的时候就只有104字节大小。至于IO位图的一些其他设置在这里我们并不需要，所以就不过多详述，这里最后给出一张TSS+位图方位的图片作为结束。
-![](http://imgsrc.baidu.com/super/pic/item/a50f4bfbfbedab648ea45a05b236afc378311e24.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/a50f4bfbfbedab648ea45a05b236afc378311e24.jpg)
 
 ## 0x03 总结
 这章实操不多，但是坑却很多，具体坑我上面也解释了。这里之后的特权级是重点，理解之后感觉对内核特权更加透彻。虽然十分长，但还是值得钻研的。
