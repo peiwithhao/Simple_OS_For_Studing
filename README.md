@@ -5,7 +5,7 @@
 shell的内建命令exec将并不启动新的shell，而是用要被执行命令替换当前的shell进程，并且将老进程的环境清理掉，而且exec命令后的其它命令将不再执行。
 简单来说就是exec会将一个新进程的进程体装进一个旧进程当中，类似灵魂附体，而由于你这个只是替换灵魂（程序体，例如代码段、数据段、堆、栈），所以身体（pid）不变。
 而根据咱们的回忆，我们shell中的内建函数都是使用`if-else if`来实现的，这就导致我们只要添加或者换一个命令就需要重新修改shell.c函数，因此有人就想出使用exec来达成用外部程序来执行命令。
-![](http://imgsrc.baidu.com/super/pic/item/d1a20cf431adcbefcb7f3ac1e9af2edda2cc9faa.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/d1a20cf431adcbefcb7f3ac1e9af2edda2cc9faa.jpg)
 我们可以查看exec的帮助手册来查看Linux上exec的使用方法如上图，这几个exec函数功能类似，区别在于参数。这里我们并不全部实现，单独实现execv就足够了。
 这里我们的实现有个点得指出，那就是execv失败返回-1,成功无返回，这里不返回任何值的原因是exec是去执行一个新进程，也就是jmp过去，他不会再需要返回到哪儿。
 这里我们创建userprog/exec.c
@@ -297,13 +297,13 @@ dawn@dawn-virtual-machine:~/repos/OS_learning$ ls -l command/prog_no_arg
 ```
 
 然后我们到虚拟机中测试看是否真的可以运行这个程序了，结果如下：
-![](http://imgsrc.baidu.com/super/pic/item/0b7b02087bf40ad10ca08324122c11dfa8ecceb5.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/0b7b02087bf40ad10ca08324122c11dfa8ecceb5.jpg)
 
 ### 3. 支持参数传递
 我们在平时的程序中都是依靠栈来传递参数，但是对于我们现在的用户程序来说创建之初还没有栈怎么办呢，实际上我们知道用户程序都有一个main函数，但是这个main函数并不是第一个运行的函数，因此他的参数就是由其他人来传递，而这里那些计算机的大佬就使用库函数对其进行协助，这个库函数实际上也就是一些通用的函数，写道一起方便调用，而后来为了规定一个标准，于是就有了CRT，也就是C运行库，而他的主要功能就是初始化运行环境，也就是进入main函数之前为他准备环境，传递参数等，然后我们再调用main函数才能正确跑起来。
 而目前咱们的用户程序大家都可以看到最后是使用while(1)来防止程序不会到处乱跑，所以我们还要实现exit系统调用来使得main函数结束后陷入内核来将处理器的控制权返回内核。
 下面给出CRT与用户程序的关系，如下:
-![](http://imgsrc.baidu.com/super/pic/item/7e3e6709c93d70cf320deecabddcd100bba12b05.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/7e3e6709c93d70cf320deecabddcd100bba12b05.jpg)
 
 接下来我们首先实现一个CRT的简易版本：
 ```
@@ -430,7 +430,7 @@ void init(void){
 ```
 
 这里我们父进程来答应ps信息，子进程使用execv来执行`prog_no_arg`,还是十分简单的，然后执行结果如下，我们确实正确的执行
-![](http://imgsrc.baidu.com/super/pic/item/4034970a304e251f9542a33fe286c9177e3e53bb.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/4034970a304e251f9542a33fe286c9177e3e53bb.jpg)
 
 ## 0x01实现系统调用exit和wait
 ### 1.wait和exit的作用
@@ -843,7 +843,7 @@ else{  //如果是外部命令，则需要从磁盘上面加载
 
 这里我只贴出修改的部分，也就是外部命令判断的那部分
 然后我们可以检测一下，这里为了方便，我提前写入了文件`file1`和`/dir1/file2`，这样是为了方便测试我们的`cat`命令，情况如下图
-![](http://imgsrc.baidu.com/super/pic/item/77094b36acaf2edd14ec072ec81001e9380193dc.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/77094b36acaf2edd14ec072ec81001e9380193dc.jpg)
 可以看到我们读取文件的功能是正常的，还有就是你可以发现每次任务的pid始终是2，因为此时主线程已经被咱们抛弃了，所以空出了2号pid，这样就每次分配给子进程，然后子进程结束后调用exit来唤醒wait的父进程，所以每次打印都是子进程号为2,这里我们在子进程加过一个判断，那就是访问错误的路径会调用`exit(1)`，这里父进程获取子进程返回的-1也确实无误。
 还有一点就是可以发现咱们的idle线程卷起来辣，这里TICKS我们知道记录的是该线程运行的总拍数，以前idle线程都入不了咱们的法眼，但此时我们添加了wait，就不用一直while(1)循环占用CPU资源，每次都是直接阻塞自身，这样idle的线程就功能大了起来，你可以这么理解，假如我们自己是CPU，我们以前没事的时候只能不停跑步，我们想闲下来抖个腿（idle线程）都不行，但是当我们得知自己可以让自己停下来（wait阻塞）的时候，我们终于可以一直抖腿了，这样我们抖退的时间就会增加，这对我们身体的负担也会小很多。
 
@@ -854,12 +854,12 @@ else{  //如果是外部命令，则需要从磁盘上面加载
 在Linux一切皆文件，因此管道也被看作文件，但是这个文件并不存在于文件系统，而是只存在于内存，这里我们其实已经知道了，根据之前的经验，这个管道当然是存储在内核空间的，因为只有这样才能实现进程间共享。
 当然实现进程资源共享还可以写同一个文件，但是这样涉及到硬盘就太慢了。
 这里还有一个问题，既然管道存在于内核空间，那我们该分配多少字节的空间呢，这个大小我们是很难把控的，这也根据你具体传递信息来决定，但是我们曾经写过一个东西可以巧妙的解决这个问题，那就是咱们的环形缓冲区，使用他理论上可以获得无限大的空间，同时也满足小字节的分配，这是由于它采用生产者消费者的设计思路，一方写满就阻塞，另一方再读。
-![](http://imgsrc.baidu.com/super/pic/item/5ab5c9ea15ce36d34c46cdf77ff33a87e850b1b3.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/5ab5c9ea15ce36d34c46cdf77ff33a87e850b1b3.jpg)
 上面是一个管道的示意图，管道有两端，一端用于从管道中读入数据，另一端往管道中写入数据，这两端使用文件描述符来读取，一个描述符用来读，一个用来写，通常情况下是用户进程为内核提供一个长度为2的文件描述符数组，然后内核会在该数组中写入管道操作的两个描述符，也就是上面的fd[0]和fd[1]
 我们要实现父子进程之间的通信，首先就是在管道创建之后，父进程立马fork出一个子进程，然后父进程和子进程一个读一个写，不会出现同一个进程又读又写的情况，比如说父进程负责写，那么他会关闭读描述符，然后子进程负责写，那么他就会关闭读描述符，而由于管道也视作文件，因此文件指针的更新对与父子来说是同步的。大郅情况如下:
-![](http://imgsrc.baidu.com/super/pic/item/c9fcc3cec3fdfc039eeead7f913f8794a5c22666.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/c9fcc3cec3fdfc039eeead7f913f8794a5c22666.jpg)
 上面是理论上的版本，下面则是实际上的使用：
-![](http://imgsrc.baidu.com/super/pic/item/eaf81a4c510fd9f959871bae602dd42a2934a461.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/eaf81a4c510fd9f959871bae602dd42a2934a461.jpg)
 这里还得说一句，管道分为两种：匿名管道和命名管道，这里从他名字也知道，区别就在于有无名字，但是他俩也有适用范围，因为如果是匿名管道，他没有名字，创建之后只能通过内核为其返回的文件描述符来访问，所以此管道只会对创建他的进程或者其子进程开放，因此匿名管道只能用于父子进程通信。
 而命名管道则是真正的文件，他存在与文件系统，因此他对任何进程都可见，所以进程间的通信就可以靠他。
 
@@ -879,7 +879,7 @@ struct file {
 这是我们之前写的文件结构，这个fd_inode其实我们并没有必要使用了，因为咱们的管道并不是真正存在与文件系统上面，但是如果说现在我们来修改文件系统势必会十分麻烦，因此我们来使用一个标识来表示他是一个管道，我们之前使用`fd_flag`来说明该文件的类型，比如说是`O_RDONLY, O_WRONLY`等，我们可以使用他来标识该文件是一个管道，因此我们就让`fd_flag`的值为0xFFFF的时候，表示该结构是一个管道，然后我们的`fd_inode`就用来指向存储数据的内核缓冲区，然后`fd_pos`就表示管道的打开数
 
 大致实现结构如下：
-![](http://imgsrc.baidu.com/super/pic/item/574e9258d109b3de7a6baaaf89bf6c81810a4c25.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/574e9258d109b3de7a6baaaf89bf6c81810a4c25.jpg)
 
 ### 3.管道的实现
 首先我们到唤醒缓冲区补充一下基本函数，他是为了获取当前缓冲区数据大小
@@ -1120,7 +1120,7 @@ int main(int argc, char** argv) {
 
 这里就是父进程往管道里面写入数据，然后子进程读出，然后我们按照原先的方法写入文件系统
 然后我们运行虚拟机来查看结果：
-![](http://imgsrc.baidu.com/super/pic/item/d50735fae6cd7b89bf6671444a2442a7d8330eea.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/d50735fae6cd7b89bf6671444a2442a7d8330eea.jpg)
 可以看到正如我们所料，完全是一致的，这里父进程首先返回，然后子进程就变成了孤儿进程，接下来就会过继给init进程领养，这里比较重要的一点是子进程确实从管道获取了父进程发给他的消息。
 
 
@@ -1286,7 +1286,7 @@ void sys_help(void){
 ```
 
 可以看到这是个简单到不能再简单的系统调用，然后我们立刻来最后一次上机测试
-![](http://imgsrc.baidu.com/super/pic/item/b90e7bec54e736d192bbc6cfde504fc2d4626949.jpg)
+![](http://imgsrc.baidu.com/forum/pic/item/b90e7bec54e736d192bbc6cfde504fc2d4626949.jpg)
 从中可以看到我们使用`ls -l|cat|./cat|../cat`来不断测试发现确实照常输出了目录内容
 
 ## 0x03 总结
